@@ -1,0 +1,29 @@
+services:
+  aip:
+    build: .
+    ports:
+      - "8000:8000"
+    # The key is injected at runtime, not baked into the image.
+    # Compose reads ANTHROPIC_API_KEY from your shell, or from a .env file
+    # sitting next to this docker-compose.yml.
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in your shell or a .env file}
+      # Dev only: auto-create a known login (+31644444444 / 1234) on startup so
+      # you don't have to run make_user.php after wiping the volume. This block
+      # does not exist on the shared host, so it never seeds a prod credential.
+      - DEV_SEED=1
+      - DEV_PHONE=+31644444444
+      - DEV_PIN=1234
+    volumes:
+      # Live-mount the source so edits to .php / .txt show up immediately —
+      # no rebuild needed (PHP's built-in server re-reads changed files).
+      # Only Dockerfile changes still require `docker compose up --build`.
+      - .:/app
+      # Named volume keeps users.json + saved recipes across restarts/rebuilds.
+      # Mounted *after* the source so it wins at /app/data (your local data/ is
+      # not used; credentials + recipes live in the volume).
+      - aip-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  aip-data:

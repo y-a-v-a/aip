@@ -1,0 +1,14 @@
+# Secrets & runtime data — keep everything in data/ out of git EXCEPT the
+# protective .htaccess (users.json, api_key, recipes/, lockout.json, api_log.jsonl).
+data/*
+!data/.htaccess
+
+# Environment / secrets
+.env
+*.env
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# OS cruft
+.DS_Store
