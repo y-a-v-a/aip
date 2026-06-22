@@ -18,9 +18,10 @@ if (preg_match('#^/(data|lib|tools|\.[^/]+)(/|$)#', $uri)
 $pages = [
     '/'            => '/index.php',
     '/index.php'   => '/index.php',
-    '/login.php'   => '/login.php',
-    '/logout.php'  => '/logout.php',
-    '/recipes.php' => '/recipes.php',
+    '/login.php'       => '/login.php',
+    '/logout.php'      => '/logout.php',
+    '/recipes.php'     => '/recipes.php',
+    '/ingredients.php' => '/ingredients.php',
 ];
 
 if (isset($pages[$uri])) {

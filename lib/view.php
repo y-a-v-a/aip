@@ -42,6 +42,7 @@ function page_top(string $title, bool $nav = true): void {
       .recipe { white-space:pre-wrap; }
       .recipe .title { font-size:1.25rem; font-weight:700; display:block; margin-bottom:4px; }
       .err { background:#fdecea; border:1px solid #f3c0b8; color:#9b2c1c; padding:10px 14px; border-radius:8px; margin-bottom:16px; }
+      .ok { background:#eaf7ee; border:1px solid #b8e0c4; color:#1c7a3c; padding:10px 14px; border-radius:8px; margin-bottom:16px; }
       .muted { color:#8a8577; font-size:.9rem; }
       .list a { display:block; padding:12px 0; border-bottom:1px solid var(--line); text-decoration:none; color:var(--ink); }
       .list a:hover .t { color:var(--accent); }
@@ -51,7 +52,7 @@ function page_top(string $title, bool $nav = true): void {
     </style></head><body><div class='wrap'>";
     echo "<header><h1>{$app}</h1>";
     if ($nav) {
-        echo "<nav><a href='/'>New&nbsp;recipe</a><a href='/recipes.php'>Saved</a><a href='/logout.php'>Log&nbsp;out</a></nav>";
+        echo "<nav><a href='/'>New&nbsp;recipe</a><a href='/recipes.php'>Saved</a><a href='/ingredients.php'>Ingredients</a><a href='/logout.php'>Log&nbsp;out</a></nav>";
     }
     echo "</header><main>";
 }

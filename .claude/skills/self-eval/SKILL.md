@@ -37,8 +37,11 @@ prove it with a run.
 - **File map:** `config.php` (settings, pricing, helpers), `lib/claude.php` (the
   single API call), `lib/store.php` (saved recipes), `lib/view.php` (HTML/CSS),
   `auth.php` (phone+PIN, CSRF, lockout), `index.php` / `login.php` / `recipes.php`
-  (pages), `system_prompt.txt` + `ingredients.txt` (model inputs), `tools/` (CLI),
-  `data/` (credentials, recipes, logs — web-blocked).
+  / `ingredients.php` (pages), `system_prompt.txt` (model input), `tools/` (CLI),
+  `data/` (credentials, recipes, logs, live `ingredients.txt` — web-blocked).
+- **Pantry:** `ingredients.txt` at the repo root is the **shipped default**; the
+  **live, editable** list is `data/ingredients.txt` (seeded from the default on
+  first use, managed via the `ingredients.php` page).
 
 ## The loop
 
@@ -112,14 +115,15 @@ code=$(curl -s -b "$cj" -c "$cj" -o /dev/null -w "%{http_code}" \
 echo "login -> $code (302 = ok)"
 
 # security gate: these must NOT return contents
-for p in /data/users.json /data/api_key /ingredients.txt /lib/claude.php; do
+for p in /data/users.json /data/api_key /data/ingredients.txt /ingredients.txt /lib/claude.php; do
   echo "  $p -> $(curl -s -o /dev/null -w '%{http_code}' "$BASE$p")"
 done
 
 # generate one recipe (real API call — keep it minimal)
 curl -s -b "$cj" -c "$cj" --data-urlencode "meal=dinner" \
   --data-urlencode "csrf=$csrf" "$BASE/" > /tmp/page.html
-grep -q "class='err'" /tmp/page.html && echo "ERROR on generate" || echo "generate ok"
+# NOTE: pages emit class="err" (double quotes) — match that exactly.
+grep -q 'class="err"' /tmp/page.html && echo "ERROR on generate" || echo "generate ok"
 
 # --- feature-specific asserts go here, e.g.: ---
 # docker compose exec -T aip cat /app/data/api_log.jsonl | tail -1
@@ -146,3 +150,7 @@ Whenever you update this skill, state plainly to the user what you changed and w
 
 - 2026-06-22 — Initial version. Encodes the build/lint/smoke-test/validate/fix loop,
   the Docker dev harness, the auto-seeded dev login, and the FIXES.md convention.
+- 2026-06-22 — Web-managed pantry shipped: added `ingredients.php` + live
+  `data/ingredients.txt` to the file map and the gate checks. Fixed the harness's
+  generate-error check (was `class='err'`, pages emit `class="err"` — a false
+  negative that hid real errors). See FIXES.md.

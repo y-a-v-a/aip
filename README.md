@@ -125,17 +125,22 @@ protection comes from the bundled `.htaccess` files instead.
 - `index.php` — the app: pick lunch/dinner/dessert, optional note, generate.
 - `lib/claude.php` — the single Claude Messages API call (raw cURL, no SDK).
 - `system_prompt.txt` — **the prompt; edit this to change behavior.** The pantry
-  from `ingredients.txt` is appended to it at request time, so the model is
-  restricted to your ingredients.
-- `ingredients.txt` — your pantry, one item per line (bullets are stripped).
+  is appended to it at request time, so the model is restricted to your ingredients.
+- `ingredients.php` — manage the pantry from the browser (login required).
+- `ingredients.txt` — the **shipped default** pantry (one item per line). On first
+  use it is copied to `data/ingredients.txt`, which is the live, editable list.
 - `recipes.php` — browse and re-read saved recipes.
 - `auth.php` — sessions, CSRF, phone+PIN check, failed-attempt lockout.
-- `data/` — `users.json` (hashed PINs), `lockout.json`, and `recipes/*.json`.
+- `data/` — `users.json` (hashed PINs), `lockout.json`, `ingredients.txt` (live
+  pantry), `api_log.jsonl`, and `recipes/*.json`.
 
 ## Tweaking
 
 - **Prompt / dietary rules:** edit `system_prompt.txt`.
-- **Ingredients:** edit `ingredients.txt`.
+- **Ingredients:** use the **Ingredients** page in the app (writes
+  `data/ingredients.txt`). Editing the repo's `ingredients.txt` only changes the
+  default used to seed a fresh `data/` — it won't affect a deployment that already
+  has a live list. To reset to the default, delete `data/ingredients.txt`.
 - **Model / cost:** edit `MODEL` in `config.php`. Default is `claude-opus-4-8`;
   `claude-sonnet-4-6` or `claude-haiku-4-5` are cheaper and plenty for recipes.
 

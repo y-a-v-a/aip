@@ -16,8 +16,13 @@ const RECIPES_DIR        = __DIR__ . '/data/recipes';
 const USERS_FILE         = __DIR__ . '/data/users.json';
 const LOCKOUT_FILE       = __DIR__ . '/data/lockout.json';
 const SYSTEM_PROMPT_FILE = __DIR__ . '/system_prompt.txt';   // <- tweak the prompt here
-const INGREDIENTS_FILE   = __DIR__ . '/ingredients.txt';     // <- your pantry
+const INGREDIENTS_SEED   = __DIR__ . '/ingredients.txt';     // shipped default (tracked in git)
+const INGREDIENTS_FILE   = __DIR__ . '/data/ingredients.txt'; // editable copy (per-deployment)
 const API_KEY_FILE       = __DIR__ . '/data/api_key';        // shared-host key fallback
+
+// Bounds for the web-managed ingredient list (keeps the prompt small + safe).
+const MAX_INGREDIENTS    = 200;
+const MAX_INGREDIENT_LEN = 80;
 const API_LOG_FILE       = __DIR__ . '/data/api_log.jsonl';  // one line per API call
 
 // USD per 1,000,000 tokens as [input, output]. Used only to estimate per-call
@@ -44,15 +49,27 @@ const FRUIT_KEYWORDS   = ['banana', 'blueberr', 'strawberr', 'raspberr', 'apple'
                           'pear', 'mango', 'papaya', 'plantain'];
 
 /**
- * Read the pantry from ingredients.txt, one item per line.
- * Strips leading bullets ("• ", "-", "*") and blank lines.
+ * Read the editable pantry (data/ingredients.txt), one item per line. On first
+ * use it is seeded from the shipped default (ingredients.txt). Strips leading
+ * bullets ("• ", "-", "*") and blank lines.
  *
  * @return string[]
  */
 function ingredients_list(): array {
+    if (!is_file(INGREDIENTS_FILE)) {
+        // Seed the editable copy from the shipped default the first time.
+        if (!is_dir(dirname(INGREDIENTS_FILE))) {
+            @mkdir(dirname(INGREDIENTS_FILE), 0775, true);
+        }
+        $seed = @file_get_contents(INGREDIENTS_SEED);
+        if ($seed !== false) {
+            @file_put_contents(INGREDIENTS_FILE, $seed, LOCK_EX);
+        }
+    }
     $raw = @file(INGREDIENTS_FILE, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     if (!is_array($raw)) {
-        return [];
+        // Fall back to the shipped default if the editable copy is unreadable.
+        $raw = @file(INGREDIENTS_SEED, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
     }
     $out = [];
     foreach ($raw as $line) {
@@ -62,6 +79,48 @@ function ingredients_list(): array {
         }
     }
     return $out;
+}
+
+/**
+ * Clean raw textarea input into a safe, bounded, de-duplicated ingredient list:
+ * strips control chars + bullets, trims, caps line length and count, drops
+ * blanks and case-insensitive duplicates (order preserved).
+ *
+ * @return string[]
+ */
+function normalize_ingredients(string $raw): array {
+    $lines = preg_split('/\r\n|\r|\n/', $raw) ?: [];
+    $out   = [];
+    $seen  = [];
+    foreach ($lines as $line) {
+        $line = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $line) ?? '';
+        $line = trim(preg_replace('/^[\x{2022}\-\*\s]+/u', '', $line) ?? '');
+        if ($line === '') {
+            continue;
+        }
+        if (mb_strlen($line) > MAX_INGREDIENT_LEN) {
+            $line = rtrim(mb_substr($line, 0, MAX_INGREDIENT_LEN));
+        }
+        $key = mb_strtolower($line);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $out[] = $line;
+        if (count($out) >= MAX_INGREDIENTS) {
+            break;
+        }
+    }
+    return $out;
+}
+
+/** Write the editable pantry. Returns false on failure. */
+function save_ingredients(array $items): bool {
+    if (!is_dir(dirname(INGREDIENTS_FILE))) {
+        @mkdir(dirname(INGREDIENTS_FILE), 0775, true);
+    }
+    $body = implode("\n", $items) . "\n";
+    return @file_put_contents(INGREDIENTS_FILE, $body, LOCK_EX) !== false;
 }
 
 /**
