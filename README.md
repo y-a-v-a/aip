@@ -111,8 +111,9 @@ protection comes from the bundled `.htaccess` files instead.
      (Apache never serves `.htaccess` itself).
 
 4. **Create a login** — with SSH: `php tools/make_user.php +15551234567 123456`.
-   **No SSH?** Run that locally (or in Docker), then upload the generated
-   `data/users.json`.
+   **No SSH / no local PHP?** Run `./tools/adduser.sh +15551234567 123456` (a thin
+   Docker wrapper around `make_user.php` — no PHP needed on your machine), then
+   upload the generated `data/users.json`.
 
 5. **Verify protection** after deploy: requesting `/data/users.json`,
    `/data/api_key`, `/ingredients.txt`, or `/lib/claude.php` should return
