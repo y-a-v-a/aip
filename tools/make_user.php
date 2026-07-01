@@ -1,7 +1,7 @@
 <?php
 // Add or update an allowed user (phone + PIN).
 //
-//   php tools/make_user.php +15551234567 1234
+//   php tools/make_user.php +15551234567 123456
 //
 // PINs are stored only as bcrypt hashes in data/users.json. Re-run to change
 // a PIN; the phone number is normalized to "+digits".
@@ -23,8 +23,8 @@ if ($phone === '' || $phone === '+') {
     fwrite(STDERR, "Invalid phone number.\n");
     exit(1);
 }
-if (strlen($pin) < 4) {
-    fwrite(STDERR, "PIN must be at least 4 characters.\n");
+if (strlen($pin) < 6) {
+    fwrite(STDERR, "PIN must be at least 6 characters.\n");
     exit(1);
 }
 

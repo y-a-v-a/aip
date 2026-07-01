@@ -1,11 +1,16 @@
 <?php
 require_once __DIR__ . '/config.php';
 
-// Harden the session cookie, then start the session.
+// Harden the session cookie, then start the session. Mark it 'secure' only when
+// the request is actually over HTTPS (prod: https://aip.bij-ons-aan-tafel.nl), so
+// local http dev (php -S / Docker) still works — a hardcoded true would stop the
+// cookie being sent over http and silently break login there.
+$https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+    || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 session_set_cookie_params([
     'httponly' => true,
     'samesite' => 'Lax',
-    // 'secure' => true,  // uncomment when serving over HTTPS
+    'secure'   => $https,
 ]);
 session_start();
 

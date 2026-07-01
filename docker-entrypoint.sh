@@ -6,7 +6,7 @@ set -e
 # `docker compose down -v`. This never runs on the shared host (Apache serves
 # the files directly; there is no entrypoint), so no dev credential leaks there.
 if [ "$DEV_SEED" = "1" ]; then
-    php /app/tools/make_user.php "${DEV_PHONE:-+31644444444}" "${DEV_PIN:-1234}" \
+    php /app/tools/make_user.php "${DEV_PHONE:-+31644444444}" "${DEV_PIN:-123456}" \
         || echo "dev seed skipped (make_user failed)"
 fi
 

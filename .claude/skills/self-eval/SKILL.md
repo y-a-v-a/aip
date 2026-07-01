@@ -26,7 +26,7 @@ prove it with a run.
 - **Run/validate it with Docker.** There is no PHP on the host. Use the image for
   both linting and running. Requires Docker Desktop running and `ANTHROPIC_API_KEY`
   in the environment.
-- **Dev login (auto-seeded):** `+31644444444` / PIN `1234`. Created on container
+- **Dev login (auto-seeded):** `+31644444444` / PIN `123456`. Created on container
   start by `docker-entrypoint.sh` when `DEV_SEED=1` (set in `docker-compose.yml`).
 - **Live reload:** the source is bind-mounted, so `.php`/`.txt` edits show up after
   a ~1–3s macOS file-share delay — **no rebuild**. Only `Dockerfile` changes need
@@ -50,9 +50,11 @@ prove it with a run.
    substring in the page, a value in `data/`, a log line, absence of a forbidden
    token). If you can't name an observable check, you can't validate — define one.
 
-2. **Lint changed PHP.** `php -l` every file you touched, via the image:
-   `docker run --rm -v "$PWD":/app aip php -l <file>` (or `docker compose exec aip
-   php -l <file>` if already up). Fix syntax errors before going further.
+2. **Lint changed PHP.** `php -l` every file you touched, via the image. If the
+   stack is up: `docker compose exec -T aip php -l /app/<file>`. If not:
+   `docker compose run --rm aip php -l /app/<file>`. Note: `docker compose` names
+   the built image `aip-aip` (project-prefixed), so a bare `docker run … aip …`
+   won't find it — use the `compose` forms above. Fix syntax errors first.
 
 3. **Build & run.** If you changed the `Dockerfile`/compose: `docker compose up -d
    --build`. Otherwise `docker compose up -d` is enough (edits are live; give it
@@ -110,7 +112,7 @@ cj=$(mktemp)
 # login as the auto-seeded dev user (grab CSRF, keep the session cookie)
 csrf=$(curl -s -c "$cj" "$BASE/login.php" | grep -o '[0-9a-f]\{32\}' | head -1)
 code=$(curl -s -b "$cj" -c "$cj" -o /dev/null -w "%{http_code}" \
-  --data-urlencode "phone=+31644444444" --data-urlencode "pin=1234" \
+  --data-urlencode "phone=+31644444444" --data-urlencode "pin=123456" \
   --data-urlencode "csrf=$csrf" "$BASE/login.php")
 echo "login -> $code (302 = ok)"
 
@@ -154,3 +156,7 @@ Whenever you update this skill, state plainly to the user what you changed and w
   `data/ingredients.txt` to the file map and the gate checks. Fixed the harness's
   generate-error check (was `class='err'`, pages emit `class="err"` — a false
   negative that hid real errors). See FIXES.md.
+- 2026-06-27 — Auth hardening pass (6-digit PIN floor + HTTPS-conditional secure
+  cookie). Corrected the lint command: the compose image is `aip-aip`, not `aip`,
+  so steer to `docker compose exec/run`. Bumped the documented dev login PIN to
+  `123456` (now the enforced minimum). See FIXES.md.

@@ -8,12 +8,12 @@ services:
     # sitting next to this docker-compose.yml.
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in your shell or a .env file}
-      # Dev only: auto-create a known login (+31644444444 / 1234) on startup so
+      # Dev only: auto-create a known login (+31644444444 / 123456) on startup so
       # you don't have to run make_user.php after wiping the volume. This block
       # does not exist on the shared host, so it never seeds a prod credential.
       - DEV_SEED=1
       - DEV_PHONE=+31644444444
-      - DEV_PIN=1234
+      - DEV_PIN=123456
     volumes:
       # Live-mount the source so edits to .php / .txt show up immediately —
       # no rebuild needed (PHP's built-in server re-reads changed files).

@@ -17,7 +17,7 @@ KISS by design: no framework, no Composer, no database. Just PHP + cURL.
 1. **Add at least one allowed user** (phone + PIN):
 
    ```sh
-   php tools/make_user.php +15551234567 1234
+   php tools/make_user.php +15551234567 123456
    ```
 
    Re-run to change a PIN or add more people. PINs are stored only as bcrypt
@@ -47,9 +47,9 @@ image or committed.
 # 1. Build
 docker compose build
 
-# 2. (optional) add more users — a dev login +31644444444 / 1234 is auto-seeded
+# 2. (optional) add more users — a dev login +31644444444 / 123456 is auto-seeded
 #    on startup via DEV_SEED in docker-compose.yml (dev only; never on the host)
-docker compose run --rm aip php tools/make_user.php +15551234567 1234
+docker compose run --rm aip php tools/make_user.php +15551234567 123456
 
 # 3. Run — pass the key from your shell (or put it in a .env file beside docker-compose.yml)
 ANTHROPIC_API_KEY="sk-ant-..." docker compose up
@@ -78,7 +78,7 @@ docker run --rm -p 8000:8000 \
   -v aip-data:/app/data \
   aip
 # add a user against the same volume:
-docker run --rm -v aip-data:/app/data aip php tools/make_user.php +15551234567 1234
+docker run --rm -v aip-data:/app/data aip php tools/make_user.php +15551234567 123456
 ```
 
 How the key reaches the app: `lib/claude.php` calls `getenv('ANTHROPIC_API_KEY')`,
@@ -110,7 +110,7 @@ protection comes from the bundled `.htaccess` files instead.
      variables"), or `SetEnv ANTHROPIC_API_KEY ...` in the root `.htaccess`
      (Apache never serves `.htaccess` itself).
 
-4. **Create a login** — with SSH: `php tools/make_user.php +15551234567 1234`.
+4. **Create a login** — with SSH: `php tools/make_user.php +15551234567 123456`.
    **No SSH?** Run that locally (or in Docker), then upload the generated
    `data/users.json`.
 
