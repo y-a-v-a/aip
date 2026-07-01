@@ -121,6 +121,20 @@ protection comes from the bundled `.htaccess` files instead.
    `AllowOverride None` (htaccess disabled): ask them to enable it, or relocate
    `data/` above the document root.
 
+## Admin scripts (no local PHP — just Docker)
+
+Each wraps a PHP CLI tool in a throwaway container and acts on `./data/`:
+
+- `tools/adduser.sh <phone> <pin>` — add or update a login (PIN min 6 chars).
+- `tools/listusers.sh` — list logins (phone + date; never PIN hashes).
+- `tools/deluser.sh <phone>` — revoke a login.
+- `tools/backup.sh` — snapshot the `aip_aip-data` volume to `./backups/`;
+  `tools/backup.sh restore <file>` puts one back. Backups hold PIN hashes — keep
+  them private (they're `.gitignore`d). For the shared host, download `data/` via
+  your host's file panel instead.
+
+After add/revoke, re-upload `data/users.json` to the shared host.
+
 ## How it works
 
 - `index.php` — the app: pick lunch/dinner/dessert, optional note, generate.
@@ -155,8 +169,10 @@ protection comes from the bundled `.htaccess` files instead.
   It is **not** phone-ownership verification (that needs SMS OTP).
 - The file-based lockout/session state has minor race conditions under heavy
   concurrent load — fine for personal use, not for high traffic.
-- **Serve over HTTPS** if it leaves localhost, and then uncomment the
-  `'secure' => true` cookie flag in `auth.php`.
+- **HTTPS:** the session cookie sets `Secure` automatically on HTTPS requests
+  (`auth.php`), and the root `.htaccess` redirects http→https + sends HSTS on
+  Apache. Deploy that redirect only once TLS is actually live on the domain, or
+  http visitors get bounced to a dead `https://` URL.
 
 ## Want the official SDK instead of raw cURL?
 

@@ -13,3 +13,19 @@
 </FilesMatch>
 
 DirectoryIndex index.php
+
+# Force HTTPS. Redirect http -> https, then tell browsers to stay on https for a
+# year (HSTS). Safe now the app is served over TLS (https://aip.bij-ons-aan-tafel.nl)
+# and the session cookie is Secure-only in prod. The second RewriteCond avoids a
+# redirect loop when TLS is terminated by a proxy that forwards over http but sets
+# X-Forwarded-Proto. Both blocks are IfModule-guarded, so they no-op if a module
+# is unavailable rather than 500-ing.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>

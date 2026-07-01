@@ -37,8 +37,10 @@ prove it with a run.
 - **File map:** `config.php` (settings, pricing, helpers), `lib/claude.php` (the
   single API call), `lib/store.php` (saved recipes), `lib/view.php` (HTML/CSS),
   `auth.php` (phone+PIN, CSRF, lockout), `index.php` / `login.php` / `recipes.php`
-  / `ingredients.php` (pages), `system_prompt.txt` (model input), `tools/` (CLI),
-  `data/` (credentials, recipes, logs, live `ingredients.txt` — web-blocked).
+  / `ingredients.php` (pages), `system_prompt.txt` (model input), `tools/` (CLI:
+  `make_user`/`list_users`/`del_user`.php + `adduser`/`listusers`/`deluser`/`backup`
+  `.sh` Docker wrappers that run those without local PHP), `data/` (credentials,
+  recipes, logs, live `ingredients.txt` — web-blocked).
 - **Pantry:** `ingredients.txt` at the repo root is the **shipped default**; the
   **live, editable** list is `data/ingredients.txt` (seeded from the default on
   first use, managed via the `ingredients.php` page).

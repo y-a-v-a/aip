@@ -10,5 +10,8 @@ data/*
 # Claude Code personal settings
 .claude/settings.local.json
 
+# Local data snapshots from tools/backup.sh (contain PIN hashes + recipes)
+/backups/
+
 # OS cruft
 .DS_Store
