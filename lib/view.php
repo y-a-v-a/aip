@@ -49,10 +49,29 @@ function page_top(string $title, bool $nav = true): void {
       .list .t { font-weight:600; }
       input[type=text],input[type=password] { width:100%; padding:11px; border:1px solid var(--line);
                border-radius:8px; font:inherit; margin-bottom:14px; }
+      label.check { font-weight:500; display:flex; align-items:center; gap:8px; margin:-4px 0 16px; }
+      .users { list-style:none; padding:0; margin:0; }
+      .users li { padding:12px 0; border-bottom:1px solid var(--line); }
+      .users .id { font-weight:600; word-break:break-all; }
+      .users .acts { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+      .users form { margin:0; }
+      button.small { padding:6px 12px; font-size:.9rem; font-weight:500; }
+      button.ghost { background:transparent; color:var(--accent); border:1px solid var(--line); }
+      .tag { display:inline-block; font-size:.75rem; background:var(--bg); border:1px solid var(--line);
+             border-radius:999px; padding:1px 8px; margin-left:6px; color:#6b665a; }
+      .link { width:100%; padding:10px; border:1px dashed var(--accent); border-radius:8px; background:var(--bg);
+              font:13px/1.4 ui-monospace,Menlo,monospace; word-break:break-all; margin-bottom:10px; }
+      .btnrow { display:flex; flex-wrap:wrap; gap:8px; }
+      a.btn { display:inline-block; background:var(--accent); color:#fff; border-radius:8px; padding:8px 14px;
+              text-decoration:none; font-weight:600; font-size:.95rem; }
     </style></head><body><div class='wrap'>";
     echo "<header><h1>{$app}</h1>";
     if ($nav) {
-        echo "<nav><a href='/'>New&nbsp;recipe</a><a href='/recipes.php'>Saved</a><a href='/ingredients.php'>Ingredients</a><a href='/logout.php'>Log&nbsp;out</a></nav>";
+        echo "<nav><a href='/'>New&nbsp;recipe</a><a href='/recipes.php'>Saved</a><a href='/ingredients.php'>Ingredients</a>";
+        if (function_exists('is_admin') && is_admin()) {
+            echo "<a href='/admin.php'>Admin</a>";
+        }
+        echo "<a href='/logout.php'>Log&nbsp;out</a></nav>";
     }
     echo "</header><main>";
 }

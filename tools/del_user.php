@@ -1,32 +1,31 @@
 <?php
-// Revoke a login by phone number.
+// Revoke a login by phone number or email.
 //
 //   php tools/del_user.php +15551234567
 //
-// Removes the phone from data/users.json. The phone is normalized to "+digits"
-// the same way make_user.php stores it, so input formatting doesn't matter.
-// Use via tools/deluser.sh if you have no local PHP.
+// Removes the user from data/users.json. Input is normalized the same way
+// make_user.php stores it, so formatting doesn't matter. Their open sessions
+// end on their next request. Use via tools/deluser.sh if you have no local PHP.
 
-require __DIR__ . '/../config.php';
+require __DIR__ . '/../lib/users.php';
 
 if ($argc < 2) {
-    fwrite(STDERR, "Usage: php tools/del_user.php <phone>\n");
+    fwrite(STDERR, "Usage: php tools/del_user.php <phone|email>\n");
     exit(1);
 }
 
-$phone = trim($argv[1]);
-$plus  = (strncmp($phone, '+', 1) === 0) ? '+' : '';
-$phone = $plus . preg_replace('/\D+/', '', $phone);
+$id = normalize_identifier($argv[1]);
 
-$users = is_file(USERS_FILE)
-    ? (json_decode((string) file_get_contents(USERS_FILE), true) ?: [])
-    : [];
+$removed = users_update(function (array &$users) use ($id) {
+    if (!isset($users[$id])) {
+        return false;
+    }
+    unset($users[$id]);
+    return true;
+});
 
-if (!isset($users[$phone])) {
-    fwrite(STDERR, "No such user: {$phone}\n");
+if (!$removed) {
+    fwrite(STDERR, "No such user: {$argv[1]}\n");
     exit(1);
 }
-
-unset($users[$phone]);
-file_put_contents(USERS_FILE, json_encode($users, JSON_PRETTY_PRINT));
-echo "Removed user {$phone}\n";
+echo "Removed user {$id}\n";

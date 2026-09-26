@@ -9,10 +9,10 @@ test('unauthenticated visitors are sent to the login page', async ({ page }) => 
 
 test('a wrong PIN is rejected', async ({ page }) => {
   await page.goto('/login.php');
-  await page.getByLabel('Phone number').fill(USER.phone);
+  await page.getByLabel('Phone number or email').fill(USER.phone);
   await page.getByLabel('PIN').fill('000000');
   await page.getByRole('button', { name: 'Log in' }).click();
-  await expect(page.getByText('Invalid phone number or PIN.')).toBeVisible();
+  await expect(page.getByText('Invalid phone number / email or PIN.')).toBeVisible();
 });
 
 test('a valid login reaches the generator and can log out', async ({ page }) => {

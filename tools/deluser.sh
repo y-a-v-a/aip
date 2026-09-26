@@ -1,5 +1,5 @@
 #!/bin/sh
-# deluser.sh — revoke a login by phone number.
+# deluser.sh — revoke a login by phone number or email.
 #
 #   ./tools/deluser.sh +31612345678
 #   ./tools/deluser.sh                # prompts for the phone
@@ -12,7 +12,7 @@ REPO=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 
 phone=${1:-}
 if [ -z "$phone" ]; then
-    printf 'Phone to remove (e.g. +31612345678): '
+    printf 'Phone or email to remove: '
     read -r phone
 fi
 

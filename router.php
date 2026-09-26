@@ -22,6 +22,7 @@ $pages = [
     '/logout.php'      => '/logout.php',
     '/recipes.php'     => '/recipes.php',
     '/ingredients.php' => '/ingredients.php',
+    '/admin.php'       => '/admin.php',
 ];
 
 if (isset($pages[$uri])) {

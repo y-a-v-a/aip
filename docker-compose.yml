@@ -8,7 +8,7 @@ services:
     # sitting next to this docker-compose.yml.
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in your shell or a .env file}
-      # Dev only: auto-create a known login (+31644444444 / 123456) on startup so
+      # Dev only: auto-create a known admin login (+31644444444 / 123456) on startup so
       # you don't have to run make_user.php after wiping the volume. This block
       # does not exist on the shared host, so it never seeds a prod credential.
       - DEV_SEED=1

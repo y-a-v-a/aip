@@ -26,8 +26,12 @@ prove it with a run.
 - **Run/validate it with Docker.** There is no PHP on the host. Use the image for
   both linting and running. Requires Docker Desktop running and `OPENROUTER_API_KEY`
   in the environment.
-- **Dev login (auto-seeded):** `+31644444444` / PIN `123456`. Created on container
-  start by `docker-entrypoint.sh` when `DEV_SEED=1` (set in `docker-compose.yml`).
+- **Dev login (auto-seeded):** `+31644444444` / PIN `123456`, an **admin** (can
+  open `/admin.php`). Created on container start by `docker-entrypoint.sh` when
+  `DEV_SEED=1` (set in `docker-compose.yml`). The login form field is
+  `identifier` (phone or email), not `phone`.
+- **E2E suite:** `cd e2e && npx playwright test` builds its own stack (port 8081,
+  mock OpenRouter, no real API cost) — the quickest full regression check.
 - **Live reload:** the source is bind-mounted, so `.php`/`.txt` edits show up after
   a ~1–3s macOS file-share delay — **no rebuild**. Only `Dockerfile` changes need
   `docker compose up --build`.
@@ -37,7 +41,8 @@ prove it with a run.
   reported by OpenRouter).
 - **File map:** `config.php` (settings, helpers), `lib/openrouter.php` (the
   single OpenRouter chat-completions call), `lib/store.php` (saved recipes), `lib/view.php` (HTML/CSS),
-  `auth.php` (phone+PIN, CSRF, lockout), `index.php` / `login.php` / `recipes.php`
+  `auth.php` (PIN + login links + device cookie, CSRF, lockout, admin gate),
+  `lib/users.php` (users.json store + tokens), `admin.php` (invite people), `index.php` / `login.php` / `recipes.php`
   / `ingredients.php` (pages), `system_prompt.txt` (model input), `tools/` (CLI:
   `make_user`/`list_users`/`del_user`.php + `adduser`/`listusers`/`deluser`/`backup`
   `.sh` Docker wrappers that run those without local PHP), `data/` (credentials,
@@ -115,7 +120,7 @@ cj=$(mktemp)
 # login as the auto-seeded dev user (grab CSRF, keep the session cookie)
 csrf=$(curl -s -c "$cj" "$BASE/login.php" | grep -o '[0-9a-f]\{32\}' | head -1)
 code=$(curl -s -b "$cj" -c "$cj" -o /dev/null -w "%{http_code}" \
-  --data-urlencode "phone=+31644444444" --data-urlencode "pin=123456" \
+  --data-urlencode "identifier=+31644444444" --data-urlencode "pin=123456" \
   --data-urlencode "csrf=$csrf" "$BASE/login.php")
 echo "login -> $code (302 = ok)"
 
@@ -169,3 +174,6 @@ Whenever you update this skill, state plainly to the user what you changed and w
   OpenRouter format (`anthropic/claude-sonnet-4.6`); per-call cost is taken from
   OpenRouter's `usage.cost` (the local PRICING table is gone). Updated the
   operating-context notes accordingly.
+- 2026-09-26 — Invite-only auth: admin page, one-time login links, device
+  cookies, email identifiers. Smoke harness login field renamed `phone` →
+  `identifier`; dev login is now an admin; pointed at the e2e suite.

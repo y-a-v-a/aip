@@ -1,5 +1,5 @@
 #!/bin/sh
-# adduser.sh — add or update an allowed login (phone + PIN) without local PHP.
+# adduser.sh — add or update an allowed login (phone/email + PIN) without local PHP.
 #
 # Runs tools/make_user.php inside a throwaway official PHP container, writing to
 # ./data/users.json in this repo. On a shared host, upload that file afterwards
@@ -7,6 +7,7 @@
 # add more people; PINs are stored only as bcrypt hashes, min 6 chars.
 #
 #   ./tools/adduser.sh +31612345678 123456
+#   ./tools/adduser.sh you@example.com 123456 --admin   # may open /admin.php
 #   ./tools/adduser.sh                        # prompts; PIN entry is hidden
 #
 # Requires: Docker (no PHP on the host). The image is pulled once on first run.
@@ -18,9 +19,10 @@ IMAGE=php:8.3-cli-alpine   # matches the Dockerfile; ships password_hash in core
 
 phone=${1:-}
 pin=${2:-}
+extra=${3:-}   # optional --admin
 
 if [ -z "$phone" ]; then
-    printf 'Phone (e.g. +31612345678): '
+    printf 'Phone or email (e.g. +31612345678): '
     read -r phone
 fi
 if [ -z "$pin" ]; then
@@ -38,6 +40,6 @@ docker run --rm \
     -v "$REPO":/app \
     -u "$(id -u):$(id -g)" \
     "$IMAGE" \
-    php /app/tools/make_user.php "$phone" "$pin"
+    php /app/tools/make_user.php "$phone" "$pin" ${extra:+"$extra"}
 
 echo "-> wrote $REPO/data/users.json  (upload it to the shared host if deploying)"

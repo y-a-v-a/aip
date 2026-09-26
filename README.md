@@ -3,8 +3,9 @@
 A tiny PHP web app that generates lunch / dinner / dessert recipes using **only**
 the whole-food ingredients in `ingredients.txt` (an AIP-style elimination diet),
 via the OpenRouter API (Claude models by default — any OpenRouter model works).
-Recipes are saved to disk and browsable. Login is a
-file-based phone-number allow-list with per-user PINs.
+Recipes are saved to disk and browsable. Access is invite-only: an admin adds
+people (phone number or email) on the **Admin** page and sends them a one-time
+login link; a PIN is optional. Users live in a JSON file — no database.
 
 KISS by design: no framework, no Composer, no database. Just PHP + cURL.
 
@@ -15,14 +16,15 @@ KISS by design: no framework, no Composer, no database. Just PHP + cURL.
 
 ## Setup
 
-1. **Add at least one allowed user** (phone + PIN):
+1. **Create your admin account** (phone or email + PIN):
 
    ```sh
-   php tools/make_user.php +15551234567 123456
+   php tools/make_user.php +15551234567 123456 --admin
    ```
 
-   Re-run to change a PIN or add more people. PINs are stored only as bcrypt
-   hashes in `data/users.json`.
+   Re-run to change a PIN. PINs are stored only as bcrypt hashes in
+   `data/users.json`. Everyone else you add from the browser — see
+   [Inviting people](#inviting-people-admin-page).
 
 2. **Make sure your API key is in the environment**, e.g.:
 
@@ -111,10 +113,12 @@ protection comes from the bundled `.htaccess` files instead.
      variables"), or `SetEnv OPENROUTER_API_KEY ...` in the root `.htaccess`
      (Apache never serves `.htaccess` itself).
 
-4. **Create a login** — with SSH: `php tools/make_user.php +15551234567 123456`.
-   **No SSH / no local PHP?** Run `./tools/adduser.sh +15551234567 123456` (a thin
-   Docker wrapper around `make_user.php` — no PHP needed on your machine), then
-   upload the generated `data/users.json`.
+4. **Create your admin login** — with SSH, in the deploy directory:
+   `php tools/make_user.php +15551234567 123456 --admin` (on an existing account
+   this keeps its data and just sets the PIN + admin flag).
+   **No SSH / no local PHP?** Run `./tools/adduser.sh +15551234567 123456 --admin`
+   (a thin Docker wrapper around `make_user.php`), then upload the generated
+   `data/users.json`. After that, add everyone else from the Admin page.
 
 5. **Verify protection** after deploy: requesting `/data/users.json`,
    `/data/api_key`, `/ingredients.txt`, or `/lib/openrouter.php` should return
@@ -122,19 +126,44 @@ protection comes from the bundled `.htaccess` files instead.
    `AllowOverride None` (htaccess disabled): ask them to enable it, or relocate
    `data/` above the document root.
 
+## Inviting people (admin page)
+
+Log in with your admin account and open **Admin** in the menu (`/admin.php`).
+It asks for your PIN once more (valid for 30 minutes of activity). Anyone who is
+not an admin gets a 404 there, and admin rights can only be granted from the
+command line (`make_user.php … --admin`), never from the web.
+
+1. Enter a **phone number** (international format, `+31612345678`) or an
+   **email address**, optionally a name and a PIN, and press *Add & create login link*.
+2. You get a personal link with *Copy*, *Send via WhatsApp* (phones) or
+   *Send by email* (emails) buttons — they open your own WhatsApp / mail app with
+   a prefilled message; the server sends nothing itself.
+3. The person opens the link and taps **Sign in**. They then stay signed in on
+   that device for a year (an httpOnly "device" cookie).
+
+Links work **once** and expire after 7 days. Opening a link only shows the
+*Sign in* button — the link is used up by tapping it, so WhatsApp's link previews
+can't burn it. Lost phone / new device? Press **New login link** (the old link
+stops working). **Sign out everywhere** ends all their sessions and devices;
+**Remove** revokes access immediately. People given a PIN can also log in with
+phone-or-email + PIN on the login page.
+
 ## Admin scripts (no local PHP — just Docker)
 
 Each wraps a PHP CLI tool in a throwaway container and acts on `./data/`:
 
-- `tools/adduser.sh <phone> <pin>` — add or update a login (PIN min 6 chars).
-- `tools/listusers.sh` — list logins (phone + date; never PIN hashes).
-- `tools/deluser.sh <phone>` — revoke a login.
+- `tools/adduser.sh <phone|email> <pin> [--admin]` — add or update a login (PIN
+  min 6 chars); `--admin` grants access to the Admin page.
+- `tools/listusers.sh` — list logins (id, date, flags; never PIN hashes).
+- `tools/deluser.sh <phone|email>` — revoke a login.
 - `tools/backup.sh` — snapshot the `aip_aip-data` volume to `./backups/`;
   `tools/backup.sh restore <file>` puts one back. Backups hold PIN hashes — keep
   them private (they're `.gitignore`d). For the shared host, download `data/` via
   your host's file panel instead.
 
-After add/revoke, re-upload `data/users.json` to the shared host.
+These edit your *local* `data/users.json`; for the shared host, prefer the Admin
+page (or `php tools/…` over SSH) — uploading a local copy overwrites users added
+from the web.
 
 ## How it works
 
@@ -146,8 +175,12 @@ After add/revoke, re-upload `data/users.json` to the shared host.
 - `ingredients.txt` — the **shipped default** pantry (one item per line). On first
   use it is copied to `data/ingredients.txt`, which is the live, editable list.
 - `recipes.php` — browse and re-read saved recipes.
-- `auth.php` — sessions, CSRF, phone+PIN check, failed-attempt lockout.
-- `data/` — `users.json` (hashed PINs), `lockout.json`, `ingredients.txt` (live
+- `auth.php` — sessions, CSRF, PIN check, login links, device cookies, lockout,
+  admin gate.
+- `admin.php` — the admin page (invite / new link / sign out / remove).
+- `lib/users.php` — the `data/users.json` store (locked read-modify-write),
+  identifier normalization, login-link and device tokens (stored as sha256 only).
+- `data/` — `users.json` (hashed PINs + token hashes), `lockout.json`, `ingredients.txt` (live
   pantry), `api_log.jsonl`, and `recipes/*.json`.
 
 ## Tweaking
@@ -183,7 +216,8 @@ The stack listens on `localhost:8081` (app) and `localhost:4010` (mock); change
 them with `E2E_APP_PORT` / `E2E_MOCK_PORT`. Tests queue canned responses on the
 mock (`POST /__mock/enqueue`) and inspect what the app sent
 (`GET /__mock/requests`). Every run starts with a fresh `data/` directory and a
-seeded test user.
+seeded test user, who is an admin (`tests/admin.spec.js` covers inviting,
+login links, device cookies, sign-out/removal and the admin gate).
 
 ## Security notes (read before exposing this publicly)
 
@@ -191,8 +225,11 @@ seeded test user.
   `data/`, `lib/`, `tools/`, and raw `.json`/`.txt` files. If you serve this any
   other way, replicate that — never let `data/users.json` be downloadable.
 - Auth is "secure enough" for a small private app: bcrypt PINs, CSRF tokens,
-  session regeneration on login, and a 5-strikes / 5-minute lockout per phone.
-  It is **not** phone-ownership verification (that needs SMS OTP).
+  session regeneration on login, and a 5-strikes / 5-minute lockout per account.
+  Login links are 192-bit random, single-use, 7-day tokens; only their sha256
+  is stored, same for device cookies. Anyone holding an unused link can sign in
+  as that person — send it only to them. It is **not** phone/email-ownership
+  verification: you vouch for who you send the link to.
 - The file-based lockout/session state has minor race conditions under heavy
   concurrent load — fine for personal use, not for high traffic.
 - **HTTPS:** the session cookie sets `Secure` automatically on HTTPS requests

@@ -1,26 +1,30 @@
 <?php
-// Add or update an allowed user (phone + PIN).
+// Add or update an allowed user (phone number or email + PIN).
 //
 //   php tools/make_user.php +15551234567 123456
+//   php tools/make_user.php you@example.com 123456 --admin
 //
-// PINs are stored only as bcrypt hashes in data/users.json. Re-run to change
-// a PIN; the phone number is normalized to "+digits".
+// --admin marks the user as an administrator (may open /admin.php to invite
+// others); this is the only way to create an admin. PINs are stored only as
+// bcrypt hashes in data/users.json. Re-run to change a PIN; other fields (name,
+// signed-in devices) are kept. Phones are normalized to "+digits", emails lowercased.
 
-require __DIR__ . '/../config.php';
+require __DIR__ . '/../lib/users.php';
 
-if ($argc < 3) {
-    fwrite(STDERR, "Usage: php tools/make_user.php <phone> <pin>\n");
+$args  = array_slice($argv, 1);
+$admin = in_array('--admin', $args, true);
+$args  = array_values(array_filter($args, fn($a) => $a !== '--admin'));
+
+if (count($args) < 2) {
+    fwrite(STDERR, "Usage: php tools/make_user.php <phone|email> <pin> [--admin]\n");
     exit(1);
 }
 
-$phone = trim($argv[1]);
-$pin   = $argv[2];
+$id  = normalize_identifier($args[0]);
+$pin = $args[1];
 
-$plus  = (strncmp($phone, '+', 1) === 0) ? '+' : '';
-$phone = $plus . preg_replace('/\D+/', '', $phone);
-
-if ($phone === '' || $phone === '+') {
-    fwrite(STDERR, "Invalid phone number.\n");
+if ($id === '') {
+    fwrite(STDERR, "Invalid phone number or email.\n");
     exit(1);
 }
 if (strlen($pin) < 6) {
@@ -28,19 +32,15 @@ if (strlen($pin) < 6) {
     exit(1);
 }
 
-if (!is_dir(DATA_DIR)) {
-    mkdir(DATA_DIR, 0775, true);
-}
+$isUpdate = users_update(function (array &$users) use ($id, $pin, $admin) {
+    $existed = isset($users[$id]);
+    $u = $users[$id] ?? ['added' => date('c')];
+    $u['pin'] = password_hash($pin, PASSWORD_DEFAULT);
+    if ($admin) {
+        $u['admin'] = true;
+    }
+    $users[$id] = $u;
+    return $existed;
+});
 
-$users = is_file(USERS_FILE)
-    ? (json_decode((string) file_get_contents(USERS_FILE), true) ?: [])
-    : [];
-
-$isUpdate = isset($users[$phone]);
-$users[$phone] = [
-    'pin'   => password_hash($pin, PASSWORD_DEFAULT),
-    'added' => date('c'),
-];
-
-file_put_contents(USERS_FILE, json_encode($users, JSON_PRETTY_PRINT));
-echo ($isUpdate ? 'Updated' : 'Added') . " user {$phone}\n";
+echo ($isUpdate ? 'Updated' : 'Added') . ($admin ? ' admin' : ' user') . " {$id}\n";
