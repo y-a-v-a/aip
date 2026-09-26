@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 require_login();
-require_once __DIR__ . '/lib/claude.php';
+require_once __DIR__ . '/lib/openrouter.php';
 require_once __DIR__ . '/lib/store.php';
 require_once __DIR__ . '/lib/view.php';
 

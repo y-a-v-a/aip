@@ -4,10 +4,10 @@ services:
     ports:
       - "8000:8000"
     # The key is injected at runtime, not baked into the image.
-    # Compose reads ANTHROPIC_API_KEY from your shell, or from a .env file
+    # Compose reads OPENROUTER_API_KEY from your shell, or from a .env file
     # sitting next to this docker-compose.yml.
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in your shell or a .env file}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in your shell or a .env file}
       # Dev only: auto-create a known login (+31644444444 / 123456) on startup so
       # you don't have to run make_user.php after wiping the volume. This block
       # does not exist on the shared host, so it never seeds a prod credential.

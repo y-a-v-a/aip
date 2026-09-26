@@ -24,18 +24,19 @@ prove it with a run.
   (`php -S`). `router.php` is also the security gate — only `php -S` uses it; on a
   shared Apache host the `.htaccess` files enforce protection instead.
 - **Run/validate it with Docker.** There is no PHP on the host. Use the image for
-  both linting and running. Requires Docker Desktop running and `ANTHROPIC_API_KEY`
+  both linting and running. Requires Docker Desktop running and `OPENROUTER_API_KEY`
   in the environment.
 - **Dev login (auto-seeded):** `+31644444444` / PIN `123456`. Created on container
   start by `docker-entrypoint.sh` when `DEV_SEED=1` (set in `docker-compose.yml`).
 - **Live reload:** the source is bind-mounted, so `.php`/`.txt` edits show up after
   a ~1–3s macOS file-share delay — **no rebuild**. Only `Dockerfile` changes need
   `docker compose up --build`.
-- **Cost awareness:** each recipe generation is a real, billed Claude API call (a
-  few cents). Keep test generations to the minimum that proves the change. Every
-  successful call is logged to `data/api_log.jsonl` (model, tokens, est. USD cost).
-- **File map:** `config.php` (settings, pricing, helpers), `lib/claude.php` (the
-  single API call), `lib/store.php` (saved recipes), `lib/view.php` (HTML/CSS),
+- **Cost awareness:** each recipe generation is a real, billed OpenRouter API call
+  (a few cents). Keep test generations to the minimum that proves the change. Every
+  successful call is logged to `data/api_log.jsonl` (model, tokens, USD cost as
+  reported by OpenRouter).
+- **File map:** `config.php` (settings, helpers), `lib/openrouter.php` (the
+  single OpenRouter chat-completions call), `lib/store.php` (saved recipes), `lib/view.php` (HTML/CSS),
   `auth.php` (phone+PIN, CSRF, lockout), `index.php` / `login.php` / `recipes.php`
   / `ingredients.php` (pages), `system_prompt.txt` (model input), `tools/` (CLI:
   `make_user`/`list_users`/`del_user`.php + `adduser`/`listusers`/`deluser`/`backup`
@@ -71,7 +72,7 @@ prove it with a run.
    - units/metric → grep the generated recipe for `°C`, `g`, `ml`; assert no
      imperial.
    - security gate → `/data/users.json`, `/data/api_key`, `/ingredients.txt`,
-     `/lib/claude.php` must return 404/403, not contents.
+     `/lib/openrouter.php` must return 404/403, not contents.
    - variety → generate a few and confirm the main ingredient spreads.
    - cost log → confirm a line was appended to `data/api_log.jsonl` with sane
      token counts.
@@ -119,7 +120,7 @@ code=$(curl -s -b "$cj" -c "$cj" -o /dev/null -w "%{http_code}" \
 echo "login -> $code (302 = ok)"
 
 # security gate: these must NOT return contents
-for p in /data/users.json /data/api_key /data/ingredients.txt /ingredients.txt /lib/claude.php; do
+for p in /data/users.json /data/api_key /data/ingredients.txt /ingredients.txt /lib/openrouter.php; do
   echo "  $p -> $(curl -s -o /dev/null -w '%{http_code}' "$BASE$p")"
 done
 
@@ -162,3 +163,9 @@ Whenever you update this skill, state plainly to the user what you changed and w
   cookie). Corrected the lint command: the compose image is `aip-aip`, not `aip`,
   so steer to `docker compose exec/run`. Bumped the documented dev login PIN to
   `123456` (now the enforced minimum). See FIXES.md.
+- 2026-07-09 — Migrated the app from the Anthropic Messages API to OpenRouter
+  (`https://openrouter.ai/api/v1/chat/completions`). The required env var is now
+  `OPENROUTER_API_KEY` (was `ANTHROPIC_API_KEY`); model IDs in `config.php` use
+  OpenRouter format (`anthropic/claude-sonnet-4.6`); per-call cost is taken from
+  OpenRouter's `usage.cost` (the local PRICING table is gone). Updated the
+  operating-context notes accordingly.

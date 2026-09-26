@@ -27,7 +27,7 @@ page_top('Ingredients');
 ?>
 <div class="card">
     <p class="muted">
-        These are the only ingredients Claude may use. One per line; bullets,
+        These are the only ingredients the AI may use. One per line; bullets,
         blank lines, and duplicates are cleaned up automatically. Up to
         <?= MAX_INGREDIENTS ?> items.
     </p>

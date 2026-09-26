@@ -5,10 +5,15 @@
 
 const APP_TITLE   = 'AIP Recipe Generator';
 
-// Model. Switch to 'claude-opus-4-8' for top quality or 'claude-haiku-4-5'
-// for the cheapest/fastest option. Sonnet is a good balance for recipes.
-const MODEL       = 'claude-sonnet-4-6';
+// Model (OpenRouter ID). Switch to 'anthropic/claude-opus-4.8' for top quality
+// or 'anthropic/claude-haiku-4.5' for the cheapest/fastest option. Any model on
+// https://openrouter.ai/models works. Sonnet is a good balance for recipes.
+const MODEL       = 'anthropic/claude-sonnet-4.6';
 const MAX_TOKENS  = 2000;
+
+// Chat-completions endpoint. Override with OPENROUTER_BASE_URL only to point at
+// a mock server (the e2e test suite does this); leave unset in production.
+const OPENROUTER_DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
 
 // Paths.
 const DATA_DIR           = __DIR__ . '/data';
@@ -24,15 +29,6 @@ const API_KEY_FILE       = __DIR__ . '/data/api_key';        // shared-host key 
 const MAX_INGREDIENTS    = 200;
 const MAX_INGREDIENT_LEN = 80;
 const API_LOG_FILE       = __DIR__ . '/data/api_log.jsonl';  // one line per API call
-
-// USD per 1,000,000 tokens as [input, output]. Used only to estimate per-call
-// cost in the log — update if Anthropic pricing changes.
-const PRICING = [
-    'claude-opus-4-8'   => [5.0, 25.0],
-    'claude-opus-4-7'   => [5.0, 25.0],
-    'claude-sonnet-4-6' => [3.0, 15.0],
-    'claude-haiku-4-5'  => [1.0, 5.0],
-];
 
 // Login lockout: after MAX_FAILED bad PINs, lock that phone for LOCKOUT_SECS.
 const MAX_FAILED   = 5;
@@ -124,19 +120,19 @@ function save_ingredients(array $items): bool {
 }
 
 /**
- * Resolve the Anthropic API key, never baked into the app, from (in order):
- *   1. process env  ANTHROPIC_API_KEY  — Docker `-e`, shell export
+ * Resolve the OpenRouter API key, never baked into the app, from (in order):
+ *   1. process env  OPENROUTER_API_KEY — Docker `-e`, shell export
  *   2. request env  $_SERVER           — Apache SetEnv / php-fpm fastcgi_param
  *   3. protected file  data/api_key    — shared hosting (denied via .htaccess)
  * Returns null if none is set.
  */
-function anthropic_api_key(): ?string {
-    $k = getenv('ANTHROPIC_API_KEY');
+function openrouter_api_key(): ?string {
+    $k = getenv('OPENROUTER_API_KEY');
     if (is_string($k) && trim($k) !== '') {
         return trim($k);
     }
-    if (!empty($_SERVER['ANTHROPIC_API_KEY'])) {
-        return trim((string) $_SERVER['ANTHROPIC_API_KEY']);
+    if (!empty($_SERVER['OPENROUTER_API_KEY'])) {
+        return trim((string) $_SERVER['OPENROUTER_API_KEY']);
     }
     if (is_file(API_KEY_FILE)) {
         $v = trim((string) @file_get_contents(API_KEY_FILE));
@@ -147,18 +143,10 @@ function anthropic_api_key(): ?string {
     return null;
 }
 
-/**
- * Rough USD cost for a call from its usage block (input + output only; this app
- * doesn't use prompt caching). Returns 0.0 if the model isn't in PRICING.
- */
-function estimate_cost(string $model, array $usage): float {
-    $p = PRICING[$model] ?? null;
-    if (!$p) {
-        return 0.0;
-    }
-    $in  = (int) ($usage['input_tokens'] ?? 0);
-    $out = (int) ($usage['output_tokens'] ?? 0);
-    return round($in / 1e6 * $p[0] + $out / 1e6 * $p[1], 6);
+/** OpenRouter API base URL (no trailing slash), overridable via env for tests. */
+function openrouter_base_url(): string {
+    $u = getenv('OPENROUTER_BASE_URL');
+    return rtrim(is_string($u) && trim($u) !== '' ? trim($u) : OPENROUTER_DEFAULT_BASE_URL, '/');
 }
 
 /** Append one compact JSON line (no recipe text) about an API call. */

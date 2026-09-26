@@ -2,7 +2,8 @@
 
 A tiny PHP web app that generates lunch / dinner / dessert recipes using **only**
 the whole-food ingredients in `ingredients.txt` (an AIP-style elimination diet),
-via the Anthropic Claude API. Recipes are saved to disk and browsable. Login is a
+via the OpenRouter API (Claude models by default — any OpenRouter model works).
+Recipes are saved to disk and browsable. Login is a
 file-based phone-number allow-list with per-user PINs.
 
 KISS by design: no framework, no Composer, no database. Just PHP + cURL.
@@ -10,7 +11,7 @@ KISS by design: no framework, no Composer, no database. Just PHP + cURL.
 ## Requirements
 
 - PHP 8.0+ with the `curl` extension (bundled in standard PHP builds)
-- `ANTHROPIC_API_KEY` set in the environment
+- `OPENROUTER_API_KEY` set in the environment (get one at <https://openrouter.ai/keys>)
 
 ## Setup
 
@@ -26,7 +27,7 @@ KISS by design: no framework, no Composer, no database. Just PHP + cURL.
 2. **Make sure your API key is in the environment**, e.g.:
 
    ```sh
-   export ANTHROPIC_API_KEY="sk-ant-..."
+   export OPENROUTER_API_KEY="sk-or-..."
    ```
 
 3. **Run it** (the router enforces access control on the built-in server):
@@ -52,7 +53,7 @@ docker compose build
 docker compose run --rm aip php tools/make_user.php +15551234567 123456
 
 # 3. Run — pass the key from your shell (or put it in a .env file beside docker-compose.yml)
-ANTHROPIC_API_KEY="sk-ant-..." docker compose up
+OPENROUTER_API_KEY="sk-or-..." docker compose up
 ```
 
 Open <http://localhost:8000>. `users.json` and saved recipes live in the named
@@ -74,16 +75,16 @@ Plain `docker` (no compose) works too:
 ```sh
 docker build -t aip .
 docker run --rm -p 8000:8000 \
-  -e ANTHROPIC_API_KEY="sk-ant-..." \
+  -e OPENROUTER_API_KEY="sk-or-..." \
   -v aip-data:/app/data \
   aip
 # add a user against the same volume:
 docker run --rm -v aip-data:/app/data aip php tools/make_user.php +15551234567 123456
 ```
 
-How the key reaches the app: `lib/claude.php` calls `getenv('ANTHROPIC_API_KEY')`,
+How the key reaches the app: `lib/openrouter.php` calls `getenv('OPENROUTER_API_KEY')`,
 which reads the container's process environment set by `-e` / compose `environment`.
-Don't use `ENV ANTHROPIC_API_KEY=...` in the Dockerfile or a build arg — that would
+Don't use `ENV OPENROUTER_API_KEY=...` in the Dockerfile or a build arg — that would
 bake it into the image.
 
 > The container runs PHP's built-in server (KISS). Fine for personal/LAN use;
@@ -106,8 +107,8 @@ protection comes from the bundled `.htaccess` files instead.
 3. **Provide the API key** (any one — none bakes it into code):
    - Create a file **`data/api_key`** containing just the key. It's blocked from
      the web by `data/.htaccess`. *Recommended — simplest and portable.*
-   - …or set `ANTHROPIC_API_KEY` as an account env var (cPanel "Environment
-     variables"), or `SetEnv ANTHROPIC_API_KEY ...` in the root `.htaccess`
+   - …or set `OPENROUTER_API_KEY` as an account env var (cPanel "Environment
+     variables"), or `SetEnv OPENROUTER_API_KEY ...` in the root `.htaccess`
      (Apache never serves `.htaccess` itself).
 
 4. **Create a login** — with SSH: `php tools/make_user.php +15551234567 123456`.
@@ -116,7 +117,7 @@ protection comes from the bundled `.htaccess` files instead.
    upload the generated `data/users.json`.
 
 5. **Verify protection** after deploy: requesting `/data/users.json`,
-   `/data/api_key`, `/ingredients.txt`, or `/lib/claude.php` should return
+   `/data/api_key`, `/ingredients.txt`, or `/lib/openrouter.php` should return
    403/404 — *not* file contents. If anything downloads, your host has
    `AllowOverride None` (htaccess disabled): ask them to enable it, or relocate
    `data/` above the document root.
@@ -138,7 +139,7 @@ After add/revoke, re-upload `data/users.json` to the shared host.
 ## How it works
 
 - `index.php` — the app: pick lunch/dinner/dessert, optional note, generate.
-- `lib/claude.php` — the single Claude Messages API call (raw cURL, no SDK).
+- `lib/openrouter.php` — the single OpenRouter chat-completions call (raw cURL, no SDK).
 - `system_prompt.txt` — **the prompt; edit this to change behavior.** The pantry
   is appended to it at request time, so the model is restricted to your ingredients.
 - `ingredients.php` — manage the pantry from the browser (login required).
@@ -156,8 +157,33 @@ After add/revoke, re-upload `data/users.json` to the shared host.
   `data/ingredients.txt`). Editing the repo's `ingredients.txt` only changes the
   default used to seed a fresh `data/` — it won't affect a deployment that already
   has a live list. To reset to the default, delete `data/ingredients.txt`.
-- **Model / cost:** edit `MODEL` in `config.php`. Default is `claude-opus-4-8`;
-  `claude-sonnet-4-6` or `claude-haiku-4-5` are cheaper and plenty for recipes.
+- **Model / cost:** edit `MODEL` in `config.php`. Default is
+  `anthropic/claude-sonnet-4.6`; `anthropic/claude-haiku-4.5` is cheaper and
+  plenty for recipes, `anthropic/claude-opus-4.8` is top quality. Any model ID
+  from <https://openrouter.ai/models> works. Per-call cost is logged to
+  `data/api_log.jsonl` straight from OpenRouter's usage accounting.
+
+## End-to-end tests (Playwright)
+
+`e2e/` holds a small Playwright suite (Node). It builds the app from the repo
+`Dockerfile` and runs it next to a mock OpenRouter server
+(`e2e/mock-openrouter/server.mjs`), so tests never call the real, paid API.
+The app is pointed at the mock with `OPENROUTER_BASE_URL`, an env override that
+should stay unset in production.
+
+```bash
+cd e2e
+npm install
+npx playwright install chromium
+npm test                      # builds + starts the stack, runs, tears it down
+E2E_KEEP_STACK=1 npm test     # leave containers up afterwards for debugging
+```
+
+The stack listens on `localhost:8081` (app) and `localhost:4010` (mock); change
+them with `E2E_APP_PORT` / `E2E_MOCK_PORT`. Tests queue canned responses on the
+mock (`POST /__mock/enqueue`) and inspect what the app sent
+(`GET /__mock/requests`). Every run starts with a fresh `data/` directory and a
+seeded test user.
 
 ## Security notes (read before exposing this publicly)
 
@@ -174,11 +200,8 @@ After add/revoke, re-upload `data/users.json` to the shared host.
   Apache. Deploy that redirect only once TLS is actually live on the domain, or
   http visitors get bounced to a dead `https://` URL.
 
-## Want the official SDK instead of raw cURL?
+## Want an SDK instead of raw cURL?
 
-```sh
-composer require anthropic-ai/sdk
-```
-
-Then replace the body of `generate_recipe()` in `lib/claude.php` with a
-`$client->messages->create(...)` call. Everything else stays the same.
+OpenRouter is OpenAI-compatible, so any OpenAI PHP client works — point it at
+`https://openrouter.ai/api/v1` and replace the body of `generate_recipe()` in
+`lib/openrouter.php` with a chat-completions call. Everything else stays the same.

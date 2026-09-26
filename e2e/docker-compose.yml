@@ -1,0 +1,27 @@
+# E2E stack: the real PHP app (built from the repo Dockerfile) wired to a mock
+# OpenRouter server. No source bind-mount and no volume, so every
+# `docker compose up` starts from a clean data/ dir.
+name: aip-e2e
+
+services:
+  app:
+    build: ..
+    ports:
+      - "${E2E_APP_PORT:-8081}:8000"
+    environment:
+      - OPENROUTER_API_KEY=sk-or-e2e-test-key
+      - OPENROUTER_BASE_URL=http://mock:4010/api/v1
+      - DEV_SEED=1
+      - DEV_PHONE=+31600000001
+      - DEV_PIN=246810
+    depends_on:
+      - mock
+
+  mock:
+    image: node:24-alpine
+    working_dir: /mock
+    command: ["node", "server.mjs"]
+    volumes:
+      - ./mock-openrouter:/mock:ro
+    ports:
+      - "${E2E_MOCK_PORT:-4010}:4010"

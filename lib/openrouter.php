@@ -2,11 +2,11 @@
 require_once __DIR__ . '/../config.php';
 
 /**
- * Generate a recipe via the Claude Messages API.
+ * Generate a recipe via the OpenRouter Chat Completions API.
  *
- * Uses a single raw HTTPS call (no Composer / SDK dependency). If you later
- * install the official PHP SDK ("composer require anthropic-ai/sdk"), this is
- * the only function you need to swap.
+ * Uses a single raw HTTPS call (no Composer / SDK dependency). OpenRouter is
+ * OpenAI-compatible, so any OpenAI-style client library would also work if you
+ * later want an SDK — this is the only function you'd need to swap.
  *
  * @param string   $mealType    'lunch' | 'dinner' | 'dessert'
  * @param string   $note        optional free-text request from the cook
@@ -15,10 +15,10 @@ require_once __DIR__ . '/../config.php';
  * @throws RuntimeException on any error (missing key, network, API, refusal)
  */
 function generate_recipe(string $mealType, string $note, array $ingredients): string {
-    $apiKey = anthropic_api_key();
+    $apiKey = openrouter_api_key();
     if (!$apiKey) {
         throw new RuntimeException(
-            'No Anthropic API key found. Set ANTHROPIC_API_KEY in the environment, '
+            'No OpenRouter API key found. Set OPENROUTER_API_KEY in the environment, '
             . 'or create a data/api_key file containing the key.'
         );
     }
@@ -55,20 +55,23 @@ function generate_recipe(string $mealType, string $note, array $ingredients): st
     $payload = [
         'model'      => MODEL,
         'max_tokens' => MAX_TOKENS,
-        'system'     => $system,
         'messages'   => [
-            ['role' => 'user', 'content' => $userMsg],
+            ['role' => 'system', 'content' => $system],
+            ['role' => 'user',   'content' => $userMsg],
         ],
+        // Ask OpenRouter to include the exact USD cost in the usage block.
+        'usage'      => ['include' => true],
     ];
 
-    $ch = curl_init('https://api.anthropic.com/v1/messages');
+    $ch = curl_init(openrouter_base_url() . '/chat/completions');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST           => true,
         CURLOPT_HTTPHEADER     => [
-            'content-type: application/json',
-            'x-api-key: ' . $apiKey,
-            'anthropic-version: 2023-06-01',
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+            // Optional attribution headers (show up on openrouter.ai rankings).
+            'X-Title: ' . APP_TITLE,
         ],
         CURLOPT_POSTFIELDS     => json_encode($payload),
         CURLOPT_TIMEOUT        => 120,
@@ -79,43 +82,41 @@ function generate_recipe(string $mealType, string $note, array $ingredients): st
     if ($resp === false) {
         $err = curl_error($ch);
         curl_close($ch);
-        throw new RuntimeException('Network error talking to Claude: ' . $err);
+        throw new RuntimeException('Network error talking to OpenRouter: ' . $err);
     }
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
 
     $data = json_decode($resp, true);
-    if ($code !== 200 || !is_array($data)) {
-        $msg = $data['error']['message'] ?? ('HTTP ' . $code);
-        throw new RuntimeException('Claude API error: ' . $msg);
+    // OpenRouter can return an error object even with HTTP 200 (e.g. moderation).
+    if ($code !== 200 || !is_array($data) || isset($data['error'])) {
+        $msg = is_array($data) ? ($data['error']['message'] ?? ('HTTP ' . $code)) : ('HTTP ' . $code);
+        throw new RuntimeException('OpenRouter API error: ' . $msg);
     }
-    if (($data['stop_reason'] ?? '') === 'refusal') {
+
+    $choice = $data['choices'][0] ?? [];
+    $finish = (string) ($choice['finish_reason'] ?? '');
+    if ($finish === 'content_filter') {
         throw new RuntimeException('The model declined to generate this recipe.');
     }
 
-    // Concatenate any text content blocks.
-    $text = '';
-    foreach ($data['content'] ?? [] as $block) {
-        if (($block['type'] ?? '') === 'text') {
-            $text .= $block['text'];
-        }
-    }
-    $text = trim($text);
+    $text = trim((string) ($choice['message']['content'] ?? ''));
     if ($text === '') {
-        throw new RuntimeException('Empty response from Claude.');
+        throw new RuntimeException('Empty response from the model.');
     }
 
-    // Cost/trace log — metadata only, no recipe text.
+    // Cost/trace log — metadata only, no recipe text. Cost comes straight from
+    // OpenRouter (usage.cost, in USD) instead of a local pricing table.
     $usage    = $data['usage'] ?? [];
     $logModel = $data['model'] ?? MODEL;
     log_api_call([
         'ts'            => date('c'),
         'model'         => $logModel,
         'meal'          => $mealType,
-        'input_tokens'  => (int) ($usage['input_tokens'] ?? 0),
-        'output_tokens' => (int) ($usage['output_tokens'] ?? 0),
-        'cost_usd'      => estimate_cost($logModel, $usage),
-        'stop_reason'   => $data['stop_reason'] ?? null,
+        'input_tokens'  => (int) ($usage['prompt_tokens'] ?? 0),
+        'output_tokens' => (int) ($usage['completion_tokens'] ?? 0),
+        'cost_usd'      => round((float) ($usage['cost'] ?? 0.0), 6),
+        'stop_reason'   => $finish !== '' ? $finish : null,
         'ms'            => $ms,
         'id'            => $data['id'] ?? null,
     ]);

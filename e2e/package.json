@@ -1,0 +1,13 @@
+{
+  "name": "aip-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "stack:up": "docker compose up -d --build",
+    "stack:down": "docker compose down -v"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

@@ -3,3 +3,6 @@
 .claude
 data/
 *.log
+
+# E2E test suite (Node/Playwright) — not part of the app image
+e2e/

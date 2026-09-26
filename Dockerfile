@@ -1,5 +1,5 @@
 # Small PHP image. The official PHP images ship with the curl extension
-# enabled by default, which is all lib/claude.php needs — no extra installs.
+# enabled by default, which is all lib/openrouter.php needs — no extra installs.
 FROM php:8.3-cli-alpine
 
 WORKDIR /app
@@ -21,6 +21,6 @@ EXPOSE 8000
 
 # The router enforces access control (blocks /data, /lib, raw .json/.txt).
 # The API key is read from the process environment at runtime via getenv() —
-# it is NOT baked into the image. Pass it with `docker run -e ANTHROPIC_API_KEY=...`.
+# it is NOT baked into the image. Pass it with `docker run -e OPENROUTER_API_KEY=...`.
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["php", "-S", "0.0.0.0:8000", "router.php"]
