@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIP Recipe User Guide</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0 0L10 5L0 10z"/></marker>
+  <marker id="arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-heada" d="M0 0L10 5L0 10z"/></marker>
+</defs></svg>
+<header class="top"><div class="in">
+  <a class="brand" href="index.html">AIP Recipe Generator <span>docs</span></a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="user.html" aria-current="page">User guide</a>
+    <a href="admin.html">Admin guide</a>
+    <a href="developer.html">Developer guide</a>
+  </nav>
+</div></header>
+
+<main>
+  <h1>User guide</h1>
+  <p class="lead">Everything you need as someone who has been invited to the app.</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#signin">Signing in</a></li>
+      <li><a href="#map">Finding your way</a></li>
+      <li><a href="#generate">Making a recipe</a></li>
+      <li><a href="#saved">Saved recipes</a></li>
+      <li><a href="#ingredients">The ingredient list</a></li>
+      <li><a href="#logout">Logging out</a></li>
+      <li><a href="#trouble">Troubleshooting</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="signin">1. Signing in</h2>
+  <p>The app is invitation-only. The admin adds your phone number or email address and sends you a
+    <strong>personal login link</strong>, usually by WhatsApp or email.</p>
+
+  <figure>
+    <svg viewBox="0 0 760 200" role="img" aria-labelledby="si-t si-d">
+      <title id="si-t">Signing in with a login link</title>
+      <desc id="si-d">Four steps: the admin sends you a link, you open it and see a Sign in button, you tap it
+        which uses the link up, and you are signed in on that device for a year.</desc>
+      <g>
+        <rect class="d-box" x="10" y="40" width="170" height="96" rx="10"/>
+        <circle class="d-num" cx="95" cy="40" r="13"/><text class="d-numt" x="95" y="45">1</text>
+        <text class="d-t c" x="95" y="84">Admin sends a link</text>
+        <text class="d-s c" x="95" y="106">by WhatsApp or email</text>
+      </g>
+      <g>
+        <rect class="d-box" x="200" y="40" width="170" height="96" rx="10"/>
+        <circle class="d-num" cx="285" cy="40" r="13"/><text class="d-numt" x="285" y="45">2</text>
+        <text class="d-t c" x="285" y="84">You open it</text>
+        <text class="d-s c" x="285" y="106">a page with one button</text>
+      </g>
+      <g>
+        <rect class="d-acc" x="390" y="40" width="170" height="96" rx="10"/>
+        <circle class="d-num" cx="475" cy="40" r="13"/><text class="d-numt" x="475" y="45">3</text>
+        <text class="d-t c" x="475" y="84">Tap “Sign in”</text>
+        <text class="d-s c" x="475" y="106">the link is now used up</text>
+      </g>
+      <g>
+        <rect class="d-ok" x="580" y="40" width="170" height="96" rx="10"/>
+        <circle class="d-num" cx="665" cy="40" r="13"/><text class="d-numt" x="665" y="45">4</text>
+        <text class="d-t c" x="665" y="84">You’re in</text>
+        <text class="d-s c" x="665" y="106">for a year, on this device</text>
+      </g>
+      <path class="d-line" d="M180 88H196"/>
+      <path class="d-line" d="M370 88H386"/>
+      <path class="d-line" d="M560 88H576"/>
+      <text class="d-s c" x="380" y="176">Got a PIN from the admin as well? You can also sign in on the login page with</text>
+      <text class="d-s c" x="380" y="194">your phone number or email address + PIN.</text>
+    </svg>
+    <figcaption>A login link works once and expires after 7 days.</figcaption>
+  </figure>
+
+  <ol class="steps">
+    <li>Open the link on the phone or computer you want to use.</li>
+    <li>You see a short welcome and a <strong>Sign in</strong> button. Tap it.</li>
+    <li>That’s it. The app remembers this device for a year, so next time you just open the site.</li>
+  </ol>
+  <div class="note">
+    <p><strong>Why the extra tap?</strong> WhatsApp and many mail apps open links in the background to build a
+      preview. The link is only used up when <em>you</em> tap Sign in, so a preview can’t spoil it.</p>
+  </div>
+  <p><strong>Another device?</strong> Each link works once. To use the app on a second phone or computer,
+    either sign in there with your PIN (if you have one) or ask the admin for a new link.</p>
+
+  <h3>Signing in with a PIN</h3>
+  <p>If the admin gave you a PIN, go to the login page and enter your <strong>phone number or email</strong>
+    and the PIN. Phone numbers can be typed with spaces or dashes — <code>+31 6 1234 5678</code> works.
+    Emails are not case sensitive. Leave <em>Keep me signed in on this device</em> ticked unless you are on a
+    shared computer.</p>
+
+  <h2 id="map">2. Finding your way</h2>
+  <figure>
+    <svg viewBox="0 0 760 236" role="img" aria-labelledby="map-t map-d">
+      <title id="map-t">Pages in the app</title>
+      <desc id="map-d">After logging in, the menu leads to New recipe, Saved, Ingredients, Admin (admins only)
+        and Log out.</desc>
+      <rect class="d-box" x="10" y="88" width="150" height="60" rx="10"/>
+      <text class="d-t c" x="85" y="114">Log in</text>
+      <text class="d-s c" x="85" y="134">link or PIN</text>
+      <path class="d-line" d="M160 118H216"/>
+      <rect class="d-acc" x="220" y="88" width="120" height="60" rx="10"/>
+      <text class="d-t c" x="280" y="114">Menu</text>
+      <text class="d-s c" x="280" y="134">top of every page</text>
+
+      <rect class="d-box" x="420" y="10" width="330" height="36" rx="8"/>
+      <text class="d-t" x="436" y="33">New recipe</text><text class="d-s" x="530" y="33">generate &amp; auto-save</text>
+      <rect class="d-box" x="420" y="56" width="330" height="36" rx="8"/>
+      <text class="d-t" x="436" y="79">Saved</text><text class="d-s" x="530" y="79">every recipe, newest first</text>
+      <rect class="d-box" x="420" y="102" width="330" height="36" rx="8"/>
+      <text class="d-t" x="436" y="125">Ingredients</text><text class="d-s" x="530" y="125">the shared pantry list</text>
+      <rect class="d-box d-dash" x="420" y="148" width="330" height="36" rx="8"/>
+      <text class="d-t" x="436" y="171">Admin</text><text class="d-s" x="530" y="171">invite people — admin only</text>
+      <rect class="d-box" x="420" y="194" width="330" height="36" rx="8"/>
+      <text class="d-t" x="436" y="217">Log out</text><text class="d-s" x="530" y="217">ends session, forgets device</text>
+
+      <path class="d-line" d="M340 110C380 110 380 28 416 28"/>
+      <path class="d-line" d="M340 114C385 114 385 74 416 74"/>
+      <path class="d-line" d="M340 118H416"/>
+      <path class="d-line" d="M340 122C385 122 385 166 416 166"/>
+      <path class="d-line" d="M340 126C380 126 380 212 416 212"/>
+    </svg>
+    <figcaption>The <em>Admin</em> item only appears for the admin.</figcaption>
+  </figure>
+
+  <h2 id="generate">3. Making a recipe</h2>
+  <figure>
+    <svg viewBox="0 0 760 420" role="img" aria-labelledby="gen-t gen-d">
+      <title id="gen-t">The New recipe page, annotated</title>
+      <desc id="gen-d">A sketch of the New recipe page with five numbered parts: the menu, the meal choice,
+        the optional wish, the Generate button and the resulting recipe.</desc>
+      <rect class="d-fill" x="20" y="10" width="340" height="400" rx="16"/>
+      <text class="d-t" x="40" y="44">AIP Recipe Generator</text>
+      <text class="d-a" x="40" y="68">New recipe</text><text class="d-a" x="118" y="68">Saved</text><text class="d-a" x="168" y="68">Ingredients</text><text class="d-a" x="252" y="68">Log out</text>
+      <line class="d-life" x1="36" y1="82" x2="344" y2="82"/>
+
+      <rect class="d-box" x="36" y="94" width="308" height="178" rx="10"/>
+      <text class="d-t" x="52" y="118">What meal?</text>
+      <rect class="d-box" x="52" y="128" width="70" height="26" rx="13"/><text class="d-s c" x="87" y="145">Lunch</text>
+      <rect class="d-acc" x="130" y="128" width="74" height="26" rx="13"/><text class="d-a c" x="167" y="145">Dinner</text>
+      <rect class="d-box" x="212" y="128" width="80" height="26" rx="13"/><text class="d-s c" x="252" y="145">Dessert</text>
+      <text class="d-s" x="52" y="178">Anything specific? (optional)</text>
+      <rect class="d-fill" x="52" y="186" width="276" height="36" rx="6"/>
+      <text class="d-s" x="62" y="209">e.g. something warming</text>
+      <rect class="d-btn" x="52" y="234" width="130" height="28" rx="6"/>
+      <text class="d-btnt" x="117" y="252">Generate recipe</text>
+
+      <rect class="d-box" x="36" y="286" width="308" height="112" rx="10"/>
+      <text class="d-t" x="52" y="312">Salmon with roast parsnip</text>
+      <rect class="d-fill" x="52" y="324" width="250" height="8" rx="4"/>
+      <rect class="d-fill" x="52" y="340" width="220" height="8" rx="4"/>
+      <rect class="d-fill" x="52" y="356" width="262" height="8" rx="4"/>
+      <text class="d-s" x="52" y="386">Saved · view all saved recipes</text>
+
+      <g>
+        <circle class="d-num" cx="330" cy="64" r="11"/><text class="d-numt" x="330" y="69">1</text>
+        <circle class="d-num" cx="312" cy="141" r="11"/><text class="d-numt" x="312" y="146">2</text>
+        <circle class="d-num" cx="330" cy="204" r="11"/><text class="d-numt" x="330" y="209">3</text>
+        <circle class="d-num" cx="198" cy="248" r="11"/><text class="d-numt" x="198" y="253">4</text>
+        <circle class="d-num" cx="330" cy="308" r="11"/><text class="d-numt" x="330" y="313">5</text>
+      </g>
+
+      <g>
+        <circle class="d-num" cx="412" cy="50" r="11"/><text class="d-numt" x="412" y="55">1</text>
+        <text class="d-t" x="432" y="55">Menu</text>
+        <text class="d-s" x="432" y="75">Switch pages. Log out also forgets this device.</text>
+
+        <circle class="d-num" cx="412" cy="120" r="11"/><text class="d-numt" x="412" y="125">2</text>
+        <text class="d-t" x="432" y="125">Pick a meal (required)</text>
+        <text class="d-s" x="432" y="145">Lunch, dinner or dessert.</text>
+
+        <circle class="d-num" cx="412" cy="190" r="11"/><text class="d-numt" x="412" y="195">3</text>
+        <text class="d-t" x="432" y="195">Say what you fancy (optional)</text>
+        <text class="d-s" x="432" y="215">“quick”, “warming”, “salmon-based”… Leave it</text>
+        <text class="d-s" x="432" y="231">empty and the app picks a random star ingredient.</text>
+
+        <circle class="d-num" cx="412" cy="268" r="11"/><text class="d-numt" x="412" y="273">4</text>
+        <text class="d-t" x="432" y="273">Generate</text>
+        <text class="d-s" x="432" y="293">Takes a few seconds — the button shows a spinner.</text>
+
+        <circle class="d-num" cx="412" cy="330" r="11"/><text class="d-numt" x="412" y="335">5</text>
+        <text class="d-t" x="432" y="335">Your recipe</text>
+        <text class="d-s" x="432" y="355">Title, ingredients with metric amounts, method.</text>
+        <text class="d-s" x="432" y="371">Already saved — nothing else to click.</text>
+      </g>
+    </svg>
+    <figcaption>The New recipe page (the home page after signing in).</figcaption>
+  </figure>
+
+  <p>The recipe only ever uses foods from the <a href="#ingredients">ingredient list</a> (plus water), in
+    metric units and °C. If your wish needs something that isn’t on the list, the recipe says so and
+    offers the closest on-list version.</p>
+  <div class="tip"><p>Getting the same kind of dish too often? Leave the wish empty: the app then builds the dish
+    around a randomly chosen protein (lunch/dinner) or fruit (dessert) from the list.</p></div>
+
+  <h2 id="saved">4. Saved recipes</h2>
+  <p><strong>Saved</strong> lists every recipe the app has made, newest first, with the meal type and date. Tap one
+    to read it again. Recipes are shared: everyone with access sees the same list.</p>
+
+  <h2 id="ingredients">5. The ingredient list</h2>
+  <p><strong>Ingredients</strong> shows the list of foods the AI is allowed to use — one per line. Edit it and press
+    <em>Save ingredients</em>. The next recipe uses the new list straight away.</p>
+  <ul>
+    <li>Bullets (•, -, *), blank lines and duplicates are cleaned up automatically.</li>
+    <li>Up to 200 items, each up to 80 characters.</li>
+    <li>The list can’t be saved empty.</li>
+  </ul>
+  <div class="warn"><p><strong>The list is shared.</strong> Changing it changes what everyone’s recipes can contain.</p></div>
+
+  <h2 id="logout">6. Logging out</h2>
+  <p><strong>Log out</strong> ends your session <em>and</em> makes this device forget you. To get back in you need your
+    PIN or a new link from the admin — so on your own phone you normally never need to log out.</p>
+
+  <h2 id="trouble">7. Troubleshooting</h2>
+  <div class="tablewrap"><table>
+    <tr><th>You see</th><th>What it means</th><th>What to do</th></tr>
+    <tr><td>“This login link is invalid, already used, or expired”</td>
+      <td>The link was used before, is older than 7 days, or the admin made a newer one.</td>
+      <td>Ask the admin for a new link.</td></tr>
+    <tr><td>“Invalid phone number / email or PIN”</td>
+      <td>Wrong PIN, or you don’t have a PIN (link-only account).</td>
+      <td>Check the number/email and PIN, or ask for a link.</td></tr>
+    <tr><td>“Too many attempts. Try again in a few minutes.”</td>
+      <td>5 wrong PINs in a row lock that account for 5 minutes.</td>
+      <td>Wait 5 minutes.</td></tr>
+    <tr><td>“Session expired, please try again.”</td>
+      <td>The page was open a long time and its security token expired.</td>
+      <td>Reload the page and submit again.</td></tr>
+    <tr><td>Suddenly back on the login page</td>
+      <td>You logged out on this device, cleared your cookies, or the admin signed you out / removed you.</td>
+      <td>Use your PIN or ask the admin for a new link.</td></tr>
+    <tr><td>A red error after pressing Generate</td>
+      <td>The AI service had a problem (network, credit, or it declined the request).</td>
+      <td>Try again; if it keeps happening, tell the admin.</td></tr>
+  </table></div>
+</main>
+
+<footer>AIP Recipe Generator documentation · <a href="admin.html">Admin guide</a> ·
+  <a href="developer.html">Developer guide</a></footer>
+</body>
+</html>

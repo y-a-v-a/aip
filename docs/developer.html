@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIP Recipe Developer Guide</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0 0L10 5L0 10z"/></marker>
+  <marker id="arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-heada" d="M0 0L10 5L0 10z"/></marker>
+</defs></svg>
+<header class="top"><div class="in">
+  <a class="brand" href="index.html">AIP Recipe Generator <span>docs</span></a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="user.html">User guide</a>
+    <a href="admin.html">Admin guide</a>
+    <a href="developer.html" aria-current="page">Developer guide</a>
+  </nav>
+</div></header>
+
+<main>
+  <h1>Developer guide</h1>
+  <p class="lead">How the app is put together, how auth works, where data lives, and how to run, test and
+    deploy it.</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#principles">Principles</a></li>
+      <li><a href="#arch">Architecture</a></li>
+      <li><a href="#files">File map</a></li>
+      <li><a href="#pages">Anatomy of a page</a></li>
+      <li><a href="#generate">Recipe generation</a></li>
+      <li><a href="#auth">Authentication</a></li>
+      <li><a href="#data">Data files</a></li>
+      <li><a href="#config">Configuration</a></li>
+      <li><a href="#run">Running locally</a></li>
+      <li><a href="#test">Testing</a></li>
+      <li><a href="#deploy">Deploying</a></li>
+      <li><a href="#security">Security checklist</a></li>
+      <li><a href="#workflow">Working on the repo</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="principles">1. Principles</h2>
+  <ul>
+    <li><strong>KISS.</strong> Plain PHP 8 + the bundled cURL extension. No framework, no Composer, no database,
+      no front-end build. A page is a PHP file.</li>
+    <li><strong>Runs on cheap shared hosting.</strong> Everything must work on an Apache host with only
+      <code>.htaccess</code> — no daemons, no cron, no mail setup.</li>
+    <li><strong>Files are the database.</strong> JSON / text files under <code>data/</code>, written with locks.</li>
+    <li><strong>Secrets are never stored in plain form.</strong> PINs are bcrypt, login-link and device tokens are
+      sha256, the API key is never in the code.</li>
+  </ul>
+
+  <h2 id="arch">2. Architecture</h2>
+  <figure>
+    <svg viewBox="0 0 760 476" role="img" aria-labelledby="ar-t ar-d">
+      <title id="ar-t">Layers of the application</title>
+      <desc id="ar-d">A browser request passes a gate (router.php or .htaccess), reaches one of six page scripts,
+        which use shared libraries; the libraries read and write the data directory and call the OpenRouter API.
+        Command-line tools use the same libraries and data directly.</desc>
+      <rect class="d-box" x="300" y="10" width="160" height="44" rx="10"/>
+      <text class="d-t c" x="380" y="37">Browser</text>
+      <path class="d-line" d="M380 54V76"/>
+
+      <rect class="d-acc" x="120" y="80" width="520" height="58" rx="10"/>
+      <text class="d-t c" x="380" y="104">Gate — router.php (php -S) · .htaccess (Apache)</text>
+      <text class="d-s c" x="380" y="124">only listed pages are served; data/, lib/, tools/ and raw .json/.txt/.md → 404/403</text>
+      <path class="d-line" d="M380 138V162"/>
+
+      <rect class="d-zone" x="10" y="166" width="740" height="84" rx="12"/>
+      <text class="d-s" x="22" y="184">Pages — entry points (one PHP file each)</text>
+      <rect class="d-box" x="20" y="194" width="112" height="46" rx="8"/><text class="d-m c" x="76" y="214">index.php</text><text class="d-s c" x="76" y="231">generate</text>
+      <rect class="d-box" x="142" y="194" width="112" height="46" rx="8"/><text class="d-m c" x="198" y="214">login.php</text><text class="d-s c" x="198" y="231">PIN + links</text>
+      <rect class="d-box" x="264" y="194" width="112" height="46" rx="8"/><text class="d-m c" x="320" y="214">logout.php</text><text class="d-s c" x="320" y="231">forget device</text>
+      <rect class="d-box" x="386" y="194" width="112" height="46" rx="8"/><text class="d-m c" x="442" y="214">recipes.php</text><text class="d-s c" x="442" y="231">saved list</text>
+      <rect class="d-box" x="508" y="194" width="112" height="46" rx="8"/><text class="d-m c" x="564" y="214">ingredients.php</text><text class="d-s c" x="564" y="231">pantry</text>
+      <rect class="d-box" x="630" y="194" width="112" height="46" rx="8"/><text class="d-m c" x="686" y="214">admin.php</text><text class="d-s c" x="686" y="231">invite people</text>
+      <path class="d-line" d="M380 250V274"/>
+
+      <rect class="d-zone" x="10" y="278" width="740" height="84" rx="12"/>
+      <text class="d-s" x="22" y="296">Libraries — included, never requested directly</text>
+      <rect class="d-box" x="20" y="306" width="112" height="46" rx="8"/><text class="d-m c" x="76" y="326">config.php</text><text class="d-s c" x="76" y="343">settings</text>
+      <rect class="d-box" x="142" y="306" width="112" height="46" rx="8"/><text class="d-m c" x="198" y="326">auth.php</text><text class="d-s c" x="198" y="343">session, CSRF</text>
+      <rect class="d-box" x="264" y="306" width="112" height="46" rx="8"/><text class="d-m c" x="320" y="326">lib/users.php</text><text class="d-s c" x="320" y="343">users + tokens</text>
+      <rect class="d-box" x="386" y="306" width="112" height="46" rx="8"/><text class="d-m c" x="442" y="326">lib/store.php</text><text class="d-s c" x="442" y="343">recipes</text>
+      <rect class="d-box" x="508" y="306" width="112" height="46" rx="8"/><text class="d-m c" x="564" y="326">lib/view.php</text><text class="d-s c" x="564" y="343">HTML + CSS</text>
+      <rect class="d-box" x="630" y="306" width="112" height="46" rx="8"/><text class="d-m c" x="686" y="319">lib/</text><text class="d-m c" x="686" y="333">openrouter.php</text><text class="d-s c" x="686" y="347">LLM call</text>
+
+      <rect class="d-fill" x="10" y="400" width="360" height="66" rx="10"/>
+      <text class="d-t" x="24" y="422">data/</text>
+      <text class="d-m" x="24" y="441">users.json · lockout.json · ingredients.txt</text>
+      <text class="d-m" x="24" y="457">recipes/*.json · api_log.jsonl · api_key</text>
+      <rect class="d-box" x="390" y="400" width="160" height="66" rx="10"/>
+      <text class="d-m c" x="470" y="428">tools/*.php</text>
+      <text class="d-s c" x="470" y="448">CLI — never via web</text>
+      <rect class="d-box" x="570" y="400" width="180" height="66" rx="10"/>
+      <text class="d-t c" x="660" y="428">OpenRouter API</text>
+      <text class="d-s c" x="660" y="448">HTTPS · Bearer key</text>
+
+      <path class="d-line" d="M190 362V396"/>
+      <path class="d-line" d="M390 433H374"/>
+      <path class="d-line" d="M470 400V366"/>
+      <path class="d-lacc" d="M686 352V396"/>
+    </svg>
+    <figcaption>Requests flow top-down. The CLI tools share <code>lib/users.php</code> with the web app, so both
+      read and write <code>users.json</code> the same way.</figcaption>
+  </figure>
+
+  <h2 id="files">3. File map</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Path</th><th>Role</th></tr>
+    <tr><td><code>index.php</code></td><td>Home page: pick meal + optional note, generate, auto-save.</td></tr>
+    <tr><td><code>login.php</code></td><td>PIN login (phone or email) and the login-link confirm page (<code>?t=</code>).</td></tr>
+    <tr><td><code>logout.php</code></td><td>Revokes this device’s token, clears cookies, destroys the session.</td></tr>
+    <tr><td><code>recipes.php</code></td><td>Saved-recipe list and single view (<code>?id=</code>, whitelisted id pattern).</td></tr>
+    <tr><td><code>ingredients.php</code></td><td>Edit the live pantry (<code>data/ingredients.txt</code>).</td></tr>
+    <tr><td><code>admin.php</code></td><td>Admin page: add person, new link, sign out everywhere, remove.</td></tr>
+    <tr><td><code>auth.php</code></td><td>Session start + cookie hardening, CSRF, <code>is_logged_in()</code>, device cookie, admin gate,
+      lockout, <code>attempt_login()</code>, <code>login_with_invite()</code>, <code>logout()</code>.</td></tr>
+    <tr><td><code>config.php</code></td><td>All constants/paths + pantry and API-key helpers.</td></tr>
+    <tr><td><code>lib/users.php</code></td><td>The <code>users.json</code> store: <code>normalize_identifier()</code>, locked
+      <code>users_update()</code>, invite and device token functions. No session code — safe for the CLI.</td></tr>
+    <tr><td><code>lib/store.php</code></td><td>Save/list/get recipes as JSON files.</td></tr>
+    <tr><td><code>lib/openrouter.php</code></td><td><code>generate_recipe()</code>: the single chat-completions call.</td></tr>
+    <tr><td><code>lib/view.php</code></td><td><code>page_top()</code>/<code>page_bottom()</code> (all CSS inline), <code>e()</code> escaping, recipe rendering.</td></tr>
+    <tr><td><code>router.php</code></td><td>Front controller + security gate for <code>php -S</code> only.</td></tr>
+    <tr><td><code>.htaccess</code>, <code>*/.htaccess</code></td><td>Same protection on Apache; root file also forces HTTPS + HSTS.</td></tr>
+    <tr><td><code>system_prompt.txt</code></td><td>The model instructions — edit to change recipe behaviour.</td></tr>
+    <tr><td><code>ingredients.txt</code></td><td>Shipped default pantry, copied to <code>data/</code> on first use.</td></tr>
+    <tr><td><code>tools/</code></td><td>CLI: <code>make_user</code>, <code>list_users</code>, <code>del_user</code> (.php) + Docker wrappers (.sh), <code>backup.sh</code>.</td></tr>
+    <tr><td><code>e2e/</code></td><td>Playwright suite, mock OpenRouter, its own compose stack.</td></tr>
+    <tr><td><code>docs/</code></td><td>These pages.</td></tr>
+  </table></div>
+
+  <h2 id="pages">4. Anatomy of a page</h2>
+  <p>Every page follows the same pattern — no router abstraction, no templates engine:</p>
+<pre><code>&lt;?php
+require_once __DIR__ . '/auth.php';   // starts the session, loads config + lib/users
+require_login();                      // or require_admin() — redirects / 404s and exits
+require_once __DIR__ . '/lib/view.php';
+
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!csrf_check($_POST['csrf'] ?? null)) {
+        $error = 'Session expired, please try again.';
+    } else {
+        // … do the work …
+    }
+}
+
+$token = csrf_token();
+page_top('Title');                    // header, nav, inline CSS
+?&gt;
+&lt;form method="post"&gt;&lt;input type="hidden" name="csrf" value="&lt;?= e($token) ?&gt;"&gt; … &lt;/form&gt;
+&lt;?php
+page_bottom();</code></pre>
+  <div class="note">
+    <p><strong>Adding a page?</strong> Also add it to the <code>$pages</code> whitelist in <code>router.php</code>, or
+      <code>php -S</code> (Docker, e2e) answers 404. Apache needs nothing extra. Escape all output with
+      <code>e()</code>, and put a CSRF token in every POST form.</p>
+  </div>
+
+  <h2 id="generate">5. Recipe generation</h2>
+  <figure>
+    <svg viewBox="0 0 760 440" role="img" aria-labelledby="gen-t gen-d">
+      <title id="gen-t">Sequence of a recipe request</title>
+      <desc id="gen-d">The browser posts to index.php, which checks login and CSRF, reads the pantry, calls
+        generate_recipe; that builds the prompt, calls OpenRouter, logs usage, and returns the text, which
+        index.php saves and renders.</desc>
+      <g>
+        <rect class="d-box" x="10" y="10" width="120" height="36" rx="8"/><text class="d-t c" x="70" y="33">Browser</text>
+        <rect class="d-acc" x="160" y="10" width="120" height="36" rx="8"/><text class="d-m c" x="220" y="33">index.php</text>
+        <rect class="d-box" x="315" y="10" width="150" height="36" rx="8"/><text class="d-m c" x="390" y="33">lib/openrouter.php</text>
+        <rect class="d-box" x="500" y="10" width="120" height="36" rx="8"/><text class="d-t c" x="560" y="33">OpenRouter</text>
+        <rect class="d-fill" x="645" y="10" width="105" height="36" rx="8"/><text class="d-m c" x="697" y="33">data/</text>
+      </g>
+      <line class="d-life" x1="70" y1="46" x2="70" y2="430"/>
+      <line class="d-life" x1="220" y1="46" x2="220" y2="430"/>
+      <line class="d-life" x1="390" y1="46" x2="390" y2="430"/>
+      <line class="d-life" x1="560" y1="46" x2="560" y2="430"/>
+      <line class="d-life" x1="697" y1="46" x2="697" y2="430"/>
+
+      <path class="d-lacc" d="M70 80H216"/><text class="d-a c" x="145" y="72">POST / meal, note, csrf</text>
+      <text class="d-s" x="228" y="106">require_login(), csrf_check(), meal ∈ {lunch, dinner, dessert}</text>
+      <path class="d-line" d="M220 136H693"/><text class="d-s c" x="458" y="128">ingredients_list() — reads data/ingredients.txt</text>
+      <path class="d-line d-dash" d="M697 156H224"/><text class="d-s c" x="458" y="170">pantry lines</text>
+      <path class="d-line" d="M220 196H386"/><text class="d-s c" x="303" y="188">generate_recipe()</text>
+      <text class="d-s" x="398" y="218">system_prompt.txt + shuffled pantry;</text>
+      <text class="d-s" x="398" y="234">no note → random “star” protein / fruit</text>
+      <path class="d-line" d="M390 262H556"/><text class="d-s c" x="473" y="254">POST /chat/completions</text>
+      <path class="d-line d-dash" d="M560 290H394"/><text class="d-s c" x="473" y="282">choices[0] + usage.cost</text>
+      <path class="d-line" d="M390 318H693"/><text class="d-s c" x="543" y="310">log_api_call() → api_log.jsonl</text>
+      <path class="d-line d-dash" d="M390 346H224"/><text class="d-s c" x="303" y="338">recipe text</text>
+      <path class="d-line" d="M220 374H693"/><text class="d-s c" x="458" y="366">save_recipe() → recipes/recipe_&lt;ts&gt;_&lt;rand&gt;.json</text>
+      <path class="d-line d-dash" d="M220 408H74"/><text class="d-s c" x="145" y="400">HTML with recipe</text>
+    </svg>
+    <figcaption>Any failure (no key, network, HTTP error, error object in a 200, <code>content_filter</code>, empty text)
+      throws a <code>RuntimeException</code> whose message index.php shows in a red box.</figcaption>
+  </figure>
+  <ul>
+    <li>The pantry is appended to the system prompt as “AVAILABLE INGREDIENTS (the ONLY ones you may use)”
+      and shuffled each call to avoid positional bias.</li>
+    <li>Without a note, <code>pick_feature()</code> chooses a random ingredient matching
+      <code>PROTEIN_KEYWORDS</code> (lunch/dinner) or <code>FRUIT_KEYWORDS</code> (dessert) as the dish’s centre.</li>
+    <li>The request asks OpenRouter for <code>usage.include</code>, so the exact USD cost lands in
+      <code>api_log.jsonl</code> (metadata only — never recipe text).</li>
+    <li>To swap the provider, only <code>generate_recipe()</code> needs to change.</li>
+  </ul>
+
+  <h2 id="auth">6. Authentication</h2>
+  <h3>Identifiers</h3>
+  <p>A user is keyed in <code>users.json</code> by an <em>identifier</em> from <code>normalize_identifier()</code>:
+    input containing <code>@</code> must be a valid email and is lowercased; anything else must look like a
+    phone number and is reduced to an optional leading <code>+</code> plus digits (≥ 6 digits). The admin page
+    additionally requires phones to start with <code>+</code>, so WhatsApp links work and <code>06…</code> /
+    <code>+316…</code> can’t become two users.</p>
+
+  <h3>How a request is recognised</h3>
+  <figure>
+    <svg viewBox="0 0 760 284" role="img" aria-labelledby="ses-t ses-d">
+      <title id="ses-t">is_logged_in() decision flow</title>
+      <desc id="ses-d">If the session names a user that still exists and was not signed out after the session began,
+        the request is signed in. Otherwise the session is dropped and a device cookie is tried: if its hash matches
+        a device younger than a year, a new session starts; if not, the cookie is cleared and the visitor is
+        anonymous.</desc>
+      <rect class="d-box" x="10" y="108" width="100" height="54" rx="10"/>
+      <text class="d-t c" x="60" y="140">Request</text>
+      <rect class="d-acc" x="140" y="108" width="130" height="54" rx="10"/>
+      <text class="d-t c" x="205" y="131">$_SESSION</text>
+      <text class="d-t c" x="205" y="149">['user'] set?</text>
+      <rect class="d-acc" x="320" y="20" width="180" height="60" rx="10"/>
+      <text class="d-t c" x="410" y="45">user still exists and</text>
+      <text class="d-t c" x="410" y="64">revoked_at ≤ session at?</text>
+      <rect class="d-acc" x="320" y="190" width="180" height="60" rx="10"/>
+      <text class="d-t c" x="410" y="215">aip_device cookie hash</text>
+      <text class="d-t c" x="410" y="234">matches, &lt; 1 year old?</text>
+      <rect class="d-ok" x="600" y="70" width="150" height="54" rx="10"/>
+      <text class="d-t c" x="675" y="94">Signed in</text>
+      <text class="d-s c" x="675" y="112">page runs</text>
+      <rect class="d-no" x="600" y="196" width="150" height="54" rx="10"/>
+      <text class="d-t c" x="675" y="220">Anonymous</text>
+      <text class="d-s c" x="675" y="238">→ /login.php</text>
+
+      <path class="d-line" d="M110 135H136"/>
+      <path class="d-line" d="M270 125C295 125 295 50 316 50"/><text class="d-okt" x="282" y="76">yes</text>
+      <path class="d-line" d="M270 145C295 145 295 220 316 220"/><text class="d-not" x="282" y="200">no</text>
+      <path class="d-line" d="M500 50C550 50 550 90 596 90"/><text class="d-okt" x="530" y="46">yes</text>
+      <path class="d-line" d="M410 80V186"/><text class="d-not" x="418" y="128">no — drop</text><text class="d-not" x="418" y="144">session</text>
+      <path class="d-line" d="M500 208C550 208 550 108 596 108"/><text class="d-okt" x="518" y="166">yes — new</text><text class="d-okt" x="518" y="182">session</text>
+      <path class="d-line" d="M500 232C550 232 560 223 596 223"/><text class="d-not" x="600" y="272">no — clear cookie</text>
+    </svg>
+    <figcaption>Because the user record is re-read on every request, <em>Remove</em> and <em>Sign out everywhere</em>
+      take effect on the target’s next click. The result is memoised per request.</figcaption>
+  </figure>
+
+  <h3>Login links</h3>
+  <figure>
+    <svg viewBox="0 0 760 400" role="img" aria-labelledby="inv-t inv-d">
+      <title id="inv-t">Login link sequence</title>
+      <desc id="inv-d">The admin adds a person; admin.php stores the sha256 of a new token with an expiry and shows the
+        link once. The admin sends it. The person's GET only shows a Sign in button; their POST redeems the token,
+        which removes it and stores a device hash, and the response sets the device cookie and session.</desc>
+      <g>
+        <rect class="d-box" x="10" y="10" width="110" height="36" rx="8"/><text class="d-t c" x="65" y="33">Admin</text>
+        <rect class="d-acc" x="160" y="10" width="120" height="36" rx="8"/><text class="d-m c" x="220" y="33">admin.php</text>
+        <rect class="d-fill" x="320" y="10" width="120" height="36" rx="8"/><text class="d-m c" x="380" y="33">users.json</text>
+        <rect class="d-acc" x="480" y="10" width="120" height="36" rx="8"/><text class="d-m c" x="540" y="33">login.php</text>
+        <rect class="d-box" x="640" y="10" width="110" height="36" rx="8"/><text class="d-t c" x="695" y="33">Person</text>
+      </g>
+      <line class="d-life" x1="65" y1="46" x2="65" y2="392"/>
+      <line class="d-life" x1="220" y1="46" x2="220" y2="392"/>
+      <line class="d-life" x1="380" y1="46" x2="380" y2="392"/>
+      <line class="d-life" x1="540" y1="46" x2="540" y2="392"/>
+      <line class="d-life" x1="695" y1="46" x2="695" y2="392"/>
+
+      <path class="d-line" d="M65 76H216"/><text class="d-s c" x="142" y="68">add id, name, PIN?</text>
+      <path class="d-line" d="M220 104H376"/><text class="d-s c" x="300" y="96">invite {sha256, +7 d}</text>
+      <path class="d-line d-dash" d="M220 132H69"/><text class="d-s c" x="142" y="124">link …?t=TOKEN (once)</text>
+      <path class="d-lacc" d="M65 166H691"/><text class="d-a c" x="380" y="158">sent via WhatsApp / email by the admin</text>
+      <path class="d-line" d="M695 200H544"/><text class="d-s c" x="618" y="192">GET ?t=TOKEN</text>
+      <path class="d-line" d="M540 226H384"/><text class="d-s c" x="460" y="218">find_invite() (read only)</text>
+      <path class="d-line d-dash" d="M540 252H691"/><text class="d-s c" x="618" y="244">“Sign in” button</text>
+      <text class="d-s" x="400" y="276">link-preview bots stop here — nothing consumed</text>
+      <path class="d-lacc" d="M695 306H544"/><text class="d-a c" x="618" y="298">POST t + csrf</text>
+      <path class="d-line" d="M540 332H384"/><text class="d-s c" x="460" y="324">redeem: drop invite,</text>
+      <text class="d-s c" x="460" y="348">add device sha256</text>
+      <path class="d-line d-dash" d="M540 372H691"/><text class="d-s c" x="618" y="364">Set-Cookie aip_device → /</text>
+    </svg>
+  </figure>
+  <ul>
+    <li>Tokens are 24 random bytes (48 hex chars). Only <code>sha256(token)</code> is stored; lookups use
+      <code>hash_equals()</code>. Redemption happens inside the <code>users_update()</code> lock, so a link can’t be
+      used twice concurrently.</li>
+    <li>Constants in <code>lib/users.php</code>: <code>INVITE_TTL_SECS</code> (7 days), <code>REMEMBER_TTL_SECS</code>
+      (1 year), <code>MAX_DEVICES</code> (10, oldest dropped).</li>
+    <li>The device cookie <code>aip_device</code> is <code>HttpOnly</code>, <code>SameSite=Lax</code>, path
+      <code>/</code>, and <code>Secure</code> on HTTPS (same rule as the session cookie via
+      <code>REQUEST_IS_HTTPS</code>).</li>
+    <li><strong>Sign out everywhere</strong> empties <code>devices</code>, drops the invite and sets
+      <code>revoked_at = microtime(true)</code>; sessions store their start time in <code>$_SESSION['at']</code>, and
+      any session older than <code>revoked_at</code> is rejected.</li>
+    <li>PIN login (<code>attempt_login()</code>) also issues a device token when “Keep me signed in” is ticked.</li>
+  </ul>
+
+  <h3>Admin gate</h3>
+  <p><code>require_admin()</code> = <code>require_login()</code> + <code>"admin": true</code> on the current user
+    (else HTTP 404, so the page isn’t advertised). <code>admin.php</code> then demands a PIN step-up:
+    <code>confirm_admin_pin()</code> sets <code>$_SESSION['admin_ok']</code>, and <code>admin_confirmed()</code> accepts it
+    for <code>ADMIN_CONFIRM_SECS</code> (1800 s), sliding on each view. The flag can only be set by
+    <code>tools/make_user.php --admin</code>.</p>
+
+  <h3>Lockout and CSRF</h3>
+  <p><code>MAX_FAILED</code> (5) bad PINs for one identifier within <code>LOCKOUT_SECS</code> (300 s) lock it; state is
+    in <code>data/lockout.json</code> and shared by the login form and the admin PIN step-up. Every POST carries a
+    per-session CSRF token checked with <code>hash_equals()</code>.</p>
+
+  <h2 id="data">7. Data files</h2>
+  <p>All runtime state lives in <code>data/</code>: git-ignored (except its deny-all <code>.htaccess</code>), blocked
+    from the web, never overwritten by a deploy.</p>
+  <div class="tablewrap"><table>
+    <tr><th>File</th><th>Written by</th><th>Contents</th></tr>
+    <tr><td><code>users.json</code></td><td>admin.php, login, logout, tools/</td><td>Users keyed by identifier (below).</td></tr>
+    <tr><td><code>lockout.json</code></td><td>auth.php</td><td><code>{id: {count, last}}</code> failed-PIN counters.</td></tr>
+    <tr><td><code>ingredients.txt</code></td><td>ingredients.php</td><td>Live pantry, one per line (seeded from the root file).</td></tr>
+    <tr><td><code>recipes/recipe_YYYYMMDD_HHMMSS_xxxxxx.json</code></td><td>index.php</td><td><code>id, created, meal, note, model, title, recipe</code>.</td></tr>
+    <tr><td><code>api_log.jsonl</code></td><td>lib/openrouter.php</td><td>One JSON line per call: model, tokens, <code>cost_usd</code>, ms, id.</td></tr>
+    <tr><td><code>api_key</code></td><td>you</td><td>Optional OpenRouter key for shared hosting.</td></tr>
+  </table></div>
+  <h3><code>users.json</code></h3>
+<pre><code>{
+  "+31612345678": {
+    "added": "2026-09-26T10:00:00+00:00",
+    "pin":   "$2y$10$…",                 // bcrypt; absent = link-only user
+    "admin": true,                       // only via make_user.php --admin
+    "name":  "Anna",                     // optional label
+    "invite":  { "hash": "&lt;sha256&gt;", "expires": 1790000000 },
+    "devices": [ { "hash": "&lt;sha256&gt;", "created": 1789000000 } ],
+    "revoked_at": 1789500000.123         // set by "Sign out everywhere"
+  },
+  "bea@example.com": { "added": "…", "devices": [] }
+}</code></pre>
+  <p>Always modify it through <code>users_update(fn(array &amp;$users) { … })</code>: it opens the file with
+    <code>flock(LOCK_EX)</code>, hands you the decoded array, and writes it back — so web requests and CLI tools
+    never clobber each other.</p>
+
+  <h2 id="config">8. Configuration</h2>
+  <div class="tablewrap"><table>
+    <tr><th>Setting</th><th>Where</th><th>Default / notes</th></tr>
+    <tr><td><code>MODEL</code></td><td>config.php</td><td><code>anthropic/claude-sonnet-4.6</code> — any OpenRouter model id.</td></tr>
+    <tr><td><code>MAX_TOKENS</code></td><td>config.php</td><td>2000</td></tr>
+    <tr><td><code>MAX_FAILED</code>, <code>LOCKOUT_SECS</code></td><td>config.php</td><td>5 tries, 300 s</td></tr>
+    <tr><td><code>MAX_INGREDIENTS</code>, <code>MAX_INGREDIENT_LEN</code></td><td>config.php</td><td>200 items, 80 chars</td></tr>
+    <tr><td><code>PROTEIN_KEYWORDS</code>, <code>FRUIT_KEYWORDS</code></td><td>config.php</td><td>Substrings used to pick the “star” ingredient.</td></tr>
+    <tr><td><code>INVITE_TTL_SECS</code>, <code>REMEMBER_TTL_SECS</code>, <code>MAX_DEVICES</code></td><td>lib/users.php</td><td>7 days, 1 year, 10</td></tr>
+    <tr><td><code>ADMIN_CONFIRM_SECS</code></td><td>auth.php</td><td>1800 s</td></tr>
+    <tr><td><code>OPENROUTER_API_KEY</code></td><td>env / <code>SetEnv</code> / <code>data/api_key</code></td><td>Required, checked in that order.</td></tr>
+    <tr><td><code>OPENROUTER_BASE_URL</code></td><td>env</td><td>Only for tests (points at the mock). Leave unset in production.</td></tr>
+    <tr><td><code>DEV_SEED</code>, <code>DEV_PHONE</code>, <code>DEV_PIN</code></td><td>compose env</td><td>Seeds an admin on container start. Dev/test only.</td></tr>
+  </table></div>
+
+  <h2 id="run">9. Running locally</h2>
+  <figure>
+    <svg viewBox="0 0 760 250" role="img" aria-labelledby="env-t env-d">
+      <title id="env-t">The three environments</title>
+      <desc id="env-d">Local development runs docker compose with the source bind-mounted and data in a named volume on
+        port 8000. The e2e stack builds the image and runs it next to a mock OpenRouter on ports 8081 and 4010 with
+        fresh data each run. Production is an Apache shared host serving the files over HTTPS with its own data
+        directory.</desc>
+      <rect class="d-box" x="10" y="10" width="236" height="230" rx="12"/>
+      <text class="d-t" x="26" y="38">Local dev</text>
+      <text class="d-m" x="26" y="62">docker compose up</text>
+      <rect class="d-fill" x="26" y="76" width="204" height="40" rx="8"/>
+      <text class="d-s" x="38" y="100">php -S :8000 router.php</text>
+      <text class="d-s" x="26" y="140">source bind-mounted → edits live</text>
+      <text class="d-s" x="26" y="160">data/ in volume aip-data</text>
+      <text class="d-s" x="26" y="180">admin +31644444444 / 123456</text>
+      <text class="d-s" x="26" y="200">real OpenRouter (costs money)</text>
+
+      <rect class="d-acc" x="262" y="10" width="236" height="230" rx="12"/>
+      <text class="d-t" x="278" y="38">E2E tests</text>
+      <text class="d-m" x="278" y="62">cd e2e &amp;&amp; npm test</text>
+      <rect class="d-box" x="278" y="76" width="96" height="40" rx="8"/>
+      <text class="d-s c" x="326" y="94">app :8081</text><text class="d-s c" x="326" y="108">built image</text>
+      <rect class="d-box" x="386" y="76" width="96" height="40" rx="8"/>
+      <text class="d-s c" x="434" y="94">mock :4010</text><text class="d-s c" x="434" y="108">OpenRouter</text>
+      <path class="d-line" d="M374 96H382"/>
+      <text class="d-s" x="278" y="140">fresh data/ every run</text>
+      <text class="d-s" x="278" y="160">admin +31600000001 / 246810</text>
+      <text class="d-s" x="278" y="180">Playwright, 1 worker, Chromium</text>
+      <text class="d-s" x="278" y="200">no API cost</text>
+
+      <rect class="d-ok" x="514" y="10" width="236" height="230" rx="12"/>
+      <text class="d-t" x="530" y="38">Production</text>
+      <text class="d-m" x="530" y="62">shared Apache host</text>
+      <rect class="d-fill" x="530" y="76" width="204" height="40" rx="8"/>
+      <text class="d-s" x="542" y="100">.htaccess gate · HTTPS + HSTS</text>
+      <text class="d-s" x="530" y="140">files uploaded / rsynced</text>
+      <text class="d-s" x="530" y="160">data/ lives only on the host</text>
+      <text class="d-s" x="530" y="180">admin created over SSH</text>
+      <text class="d-s" x="530" y="200">key in data/api_key or SetEnv</text>
+    </svg>
+  </figure>
+<pre><code># key from your shell or a .env file beside docker-compose.yml
+OPENROUTER_API_KEY="sk-or-..." docker compose up -d
+open http://localhost:8000          # log in as +31644444444 / 123456 (admin)
+
+docker compose exec -T aip php -l /app/admin.php          # lint (no PHP on the host needed)
+docker compose exec aip php tools/list_users.php          # CLI inside the container
+docker compose logs aip</code></pre>
+  <p>PHP/TXT edits show up after a second or two (bind mount). Only <code>Dockerfile</code> or
+    <code>docker-entrypoint.sh</code> changes need <code>docker compose up -d --build</code>. Without Docker:
+    <code>php -S localhost:8000 router.php</code> after <code>php tools/make_user.php &lt;id&gt; &lt;pin&gt; --admin</code>.</p>
+
+  <h2 id="test">10. Testing</h2>
+<pre><code>cd e2e
+npm install &amp;&amp; npx playwright install chromium   # once
+npm test                      # build + start stack, run, tear down
+E2E_KEEP_STACK=1 npm test     # keep containers for debugging
+npx playwright test tests/admin.spec.js -g "sign out"</code></pre>
+  <div class="tablewrap"><table>
+    <tr><th>Spec</th><th>Covers</th></tr>
+    <tr><td><code>auth.spec.js</code></td><td>Redirect to login, wrong PIN, login/logout, sensitive files return 404.</td></tr>
+    <tr><td><code>admin.spec.js</code></td><td>Admin gate + PIN step-up, 404 for non-admins, invite by phone/email, link preview
+      safety, single use, device cookie restore, new link replaces old, sign out everywhere, remove, CSRF, logout
+      revokes device.</td></tr>
+    <tr><td><code>generate.spec.js</code></td><td>Generation happy path and error handling against the mock.</td></tr>
+    <tr><td><code>ingredients.spec.js</code></td><td>Pantry editing reaches the model prompt.</td></tr>
+  </table></div>
+  <p>Helpers in <code>tests/helpers.js</code>: <code>login(page, id?, pin?)</code>, <code>openAdmin(page)</code>,
+    <code>addPerson(page, {identifier, name, pin})</code> (returns the link), and <code>mock.enqueue()</code> /
+    <code>mock.requests()</code> to script and inspect the fake OpenRouter. Tests share one stack and run serially, so
+    use unique identifiers per test.</p>
+
+  <h2 id="deploy">11. Deploying</h2>
+  <ol class="steps">
+    <li>Upload the repo (minus <code>e2e/</code>, Docker files, docs if you like) to the subdomain’s document root —
+      the app expects to live at <code>/</code>.</li>
+    <li>Make <code>data/</code> writable by PHP (<code>chmod 775 data</code>). The web app now writes
+      <code>users.json</code> too.</li>
+    <li>Provide the API key via <code>data/api_key</code> (recommended) or <code>SetEnv</code>.</li>
+    <li>Create the admin over SSH: <code>php tools/make_user.php &lt;id&gt; &lt;pin&gt; --admin</code>.</li>
+    <li>Verify <code>/data/users.json</code>, <code>/data/api_key</code>, <code>/lib/openrouter.php</code>,
+      <code>/ingredients.txt</code> return 403/404.</li>
+  </ol>
+  <div class="warn"><p>Never sync <em>into</em> <code>data/</code> on the host: it holds users added on the web, sessions’
+    device hashes, recipes and the cost log. If you automate deploys with rsync <code>--delete</code>, exclude
+    <code>data/</code> (except <code>data/.htaccess</code>).</p></div>
+
+  <h2 id="security">12. Security checklist</h2>
+  <ul>
+    <li>Escape output with <code>e()</code>; never echo request data raw.</li>
+    <li>CSRF token on every state-changing POST; no state changes on GET (except logout).</li>
+    <li>New entry point → add it to <code>router.php</code>; new private directory → give it a deny-all <code>.htaccess</code>.</li>
+    <li>File names from user input: whitelist-regex them (see <code>get_recipe()</code>).</li>
+    <li>Store secrets hashed; compare with <code>hash_equals()</code> / <code>password_verify()</code>.</li>
+    <li>Change <code>users.json</code> only through <code>users_update()</code>.</li>
+    <li>Admin-only features: <code>require_admin()</code> <em>and</em> check <code>admin_confirmed()</code> before acting.</li>
+    <li>Known limits: lockout is per identifier (not per IP); a login link is a bearer credential until used; no
+      proof of phone/email ownership — the admin vouches.</li>
+  </ul>
+
+  <h2 id="workflow">13. Working on the repo</h2>
+  <ul>
+    <li>The <code>self-eval</code> skill (<code>.claude/skills/self-eval/SKILL.md</code>) is the checklist after every
+      change: lint in Docker, run, smoke-test, validate, and log non-obvious fixes.</li>
+    <li><code>FIXES.md</code> records gotchas that cost time (newest first) — read it before debugging Docker/cookie
+      oddities.</li>
+    <li><code>README.md</code> is the quick start; these docs are the long form. Update both when behaviour changes.</li>
+  </ul>
+</main>
+
+<footer>AIP Recipe Generator documentation · <a href="user.html">User guide</a> ·
+  <a href="admin.html">Admin guide</a></footer>
+</body>
+</html>

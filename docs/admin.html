@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIP Recipe Admin Guide</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+  <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-head" d="M0 0L10 5L0 10z"/></marker>
+  <marker id="arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="d-heada" d="M0 0L10 5L0 10z"/></marker>
+</defs></svg>
+<header class="top"><div class="in">
+  <a class="brand" href="index.html">AIP Recipe Generator <span>docs</span></a>
+  <nav>
+    <a href="index.html">Overview</a>
+    <a href="user.html">User guide</a>
+    <a href="admin.html" aria-current="page">Admin guide</a>
+    <a href="developer.html">Developer guide</a>
+  </nav>
+</div></header>
+
+<main>
+  <h1>Admin guide</h1>
+  <p class="lead">How the admin decides who can use the app: inviting people, sending login links and
+    taking access away.</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#become">Becoming the admin</a></li>
+      <li><a href="#gate">How the admin page is protected</a></li>
+      <li><a href="#invite">Inviting someone</a></li>
+      <li><a href="#lifecycle">Life of a login link</a></li>
+      <li><a href="#manage">Managing people</a></li>
+      <li><a href="#cli">Command-line tools</a></li>
+      <li><a href="#practice">Good practice</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="become">1. Becoming the admin</h2>
+  <p>Admin rights can <strong>only</strong> be given from the command line on the server. No web page can
+    create or promote an admin, so a leaked login link can never be turned into admin access.</p>
+  <p>On the shared host, over SSH, in the directory the app is deployed to:</p>
+<pre><code>php tools/make_user.php +31612345678 &lt;your-pin&gt; --admin</code></pre>
+  <p>This creates the account, or — if it already exists — sets the PIN and the admin flag while keeping
+    everything else (name, signed-in devices). An email address works as the identifier too. The admin
+    <em>needs</em> a PIN: it is asked for again on the admin page.</p>
+  <div class="note"><p>No SSH? Run <code>./tools/adduser.sh +31612345678 &lt;pin&gt; --admin</code> on your own machine
+    (needs Docker, not PHP) and upload the resulting <code>data/users.json</code> — but only while nobody has been
+    added via the web yet, because the upload replaces the file on the server.</p></div>
+  <p>Local Docker and the test suite seed an admin automatically: <code>+31644444444</code> / <code>123456</code>
+    (dev only — never on the host).</p>
+
+  <h2 id="gate">2. How the admin page is protected</h2>
+  <figure>
+    <svg viewBox="0 0 760 240" role="img" aria-labelledby="gate-t gate-d">
+      <title id="gate-t">Checks before the admin page opens</title>
+      <desc id="gate-d">Opening /admin.php: if not signed in you go to the login page; if signed in but not an
+        admin you get 404 Not found; if an admin who has not re-entered the PIN in the last 30 minutes you are
+        asked for the PIN; otherwise the admin page opens.</desc>
+      <rect class="d-box" x="20" y="40" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="80" y="66">Open</text>
+      <text class="d-m c" x="80" y="84">/admin.php</text>
+
+      <rect class="d-acc" x="170" y="40" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="230" y="73">Signed in?</text>
+      <rect class="d-acc" x="320" y="40" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="380" y="73">Admin account?</text>
+      <rect class="d-acc" x="470" y="40" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="530" y="64">PIN re-entered</text>
+      <text class="d-t c" x="530" y="82">in last 30 min?</text>
+      <rect class="d-ok" x="620" y="40" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="680" y="73">Admin page</text>
+
+      <path class="d-line" d="M140 68H166"/>
+      <path class="d-line" d="M290 68H316"/><text class="d-okt c" x="305" y="60">yes</text>
+      <path class="d-line" d="M440 68H466"/><text class="d-okt c" x="455" y="60">yes</text>
+      <path class="d-line" d="M590 68H616"/><text class="d-okt c" x="605" y="60">yes</text>
+
+      <path class="d-line" d="M230 96V156"/><text class="d-not" x="238" y="130">no</text>
+      <path class="d-line" d="M380 96V156"/><text class="d-not" x="388" y="130">no</text>
+      <path class="d-line" d="M530 96V156"/><text class="d-not" x="538" y="130">no</text>
+
+      <rect class="d-box" x="170" y="160" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="230" y="186">Login page</text>
+      <text class="d-s c" x="230" y="204">sign in first</text>
+      <rect class="d-no" x="320" y="160" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="380" y="186">404 Not found</text>
+      <text class="d-s c" x="380" y="204">page stays hidden</text>
+      <rect class="d-box" x="470" y="160" width="120" height="56" rx="10"/>
+      <text class="d-t c" x="530" y="186">“Your PIN”</text>
+      <text class="d-s c" x="530" y="204">5 tries, then locked</text>
+
+      <path class="d-lacc" d="M590 188C650 188 680 150 680 100"/>
+      <text class="d-a" x="640" y="200">correct PIN</text>
+    </svg>
+    <figcaption>Every admin action repeats all three checks. Each admin page view extends the 30-minute window.</figcaption>
+  </figure>
+  <p>The admin link in the menu is only shown to admins. Other signed-in people who type the address get a plain
+    404, as if the page did not exist.</p>
+
+  <h2 id="invite">3. Inviting someone</h2>
+  <ol class="steps">
+    <li>Sign in, choose <strong>Admin</strong> in the menu and confirm your PIN.</li>
+    <li>Under <em>Add a person</em>, enter a <strong>phone number in international format</strong>
+      (<code>+31612345678</code> — spaces and dashes are fine, a leading <code>+</code> is required) or an
+      <strong>email address</strong>.</li>
+    <li>Optionally add a <strong>name</strong> (used in the welcome message) and a <strong>PIN</strong> (at least 6
+      characters) if they should also be able to sign in on other devices without a new link.</li>
+    <li>Press <strong>Add &amp; create login link</strong>. A box with the link appears:
+      <ul>
+        <li><strong>Copy link</strong> — paste it wherever you like;</li>
+        <li><strong>Send via WhatsApp</strong> (phone numbers) — opens WhatsApp with a ready-made message to that number;</li>
+        <li><strong>Send by email</strong> (emails) — opens your mail app with subject and message filled in.</li>
+      </ul>
+    </li>
+  </ol>
+  <div class="warn"><p><strong>The link is shown only once</strong> — the server keeps just a fingerprint of it. Missed
+    it? Press <em>New login link</em> for that person.</p></div>
+  <p>The server never sends messages itself: WhatsApp and email go out from <em>your</em> phone or computer, so
+    they arrive from someone the person knows.</p>
+
+  <h2 id="lifecycle">4. Life of a login link</h2>
+  <figure>
+    <svg viewBox="0 0 760 250" role="img" aria-labelledby="lc-t lc-d">
+      <title id="lc-t">States of an invited person</title>
+      <desc id="lc-d">After being added, a person has a pending link. Tapping Sign in moves them to signed in on a
+        device. After 7 days an unused link expires. Sign out everywhere ends all devices. New login link returns
+        to a pending link from the expired or signed-out state. Remove deletes the person from any state.</desc>
+      <rect class="d-box" x="10" y="40" width="120" height="54" rx="10"/>
+      <text class="d-t c" x="70" y="64">Added</text>
+      <text class="d-s c" x="70" y="82">on the admin page</text>
+
+      <rect class="d-acc" x="190" y="40" width="150" height="54" rx="10"/>
+      <text class="d-t c" x="265" y="64">Link pending</text>
+      <text class="d-s c" x="265" y="82">tag “link pending”</text>
+
+      <rect class="d-ok" x="420" y="40" width="170" height="54" rx="10"/>
+      <text class="d-t c" x="505" y="64">Signed in</text>
+      <text class="d-s c" x="505" y="82">tag “1 device”, “2 devices”…</text>
+
+      <rect class="d-box d-dash" x="190" y="176" width="150" height="54" rx="10"/>
+      <text class="d-t c" x="265" y="200">Expired</text>
+      <text class="d-s c" x="265" y="218">link no longer works</text>
+
+      <rect class="d-no" x="420" y="176" width="170" height="54" rx="10"/>
+      <text class="d-t c" x="505" y="200">Signed out</text>
+      <text class="d-s c" x="505" y="218">all sessions + devices ended</text>
+
+      <rect class="d-no" x="640" y="108" width="110" height="54" rx="10"/>
+      <text class="d-t c" x="695" y="132">Removed</text>
+      <text class="d-s c" x="695" y="150">from any state</text>
+
+      <path class="d-line" d="M130 67H186"/>
+      <path class="d-lacc" d="M340 67H416"/><text class="d-a c" x="378" y="58">tap Sign in</text>
+      <path class="d-line" d="M235 94V172"/><text class="d-s r" x="227" y="138">7 days</text>
+      <path class="d-line" d="M295 176V98"/><text class="d-s" x="303" y="138">New login link</text>
+      <path class="d-line" d="M505 94V172"/><text class="d-s" x="513" y="132">Sign out</text><text class="d-s" x="513" y="148">everywhere</text>
+      <path class="d-line" d="M420 214C380 214 380 150 330 98"/>
+      <path class="d-line d-dash" d="M590 67C625 67 615 135 636 135"/>
+      <path class="d-line d-dash" d="M590 203C625 203 615 135 636 135"/>
+    </svg>
+    <figcaption>“New login link” always replaces the previous link — only the newest one works.
+      It is also how a signed-in person gets onto an extra device.</figcaption>
+  </figure>
+
+  <h2 id="manage">5. Managing people</h2>
+  <p>The list under <em>People with access</em> shows everyone, sorted by phone/email. Each row looks like this:</p>
+  <figure>
+    <svg viewBox="0 0 760 170" role="img" aria-labelledby="row-t row-d">
+      <title id="row-t">A person row on the admin page</title>
+      <desc id="row-d">A row showing the name and phone number, tags for PIN, devices and pending link, and three
+        buttons: New login link, Sign out everywhere and Remove.</desc>
+      <rect class="d-box" x="10" y="10" width="740" height="92" rx="10"/>
+      <text class="d-t" x="28" y="40">Anna · +31611112222</text>
+      <rect class="d-fill" x="200" y="26" width="42" height="20" rx="10"/><text class="d-s c" x="221" y="40">PIN</text>
+      <rect class="d-fill" x="250" y="26" width="70" height="20" rx="10"/><text class="d-s c" x="285" y="40">1 device</text>
+      <rect class="d-fill" x="328" y="26" width="92" height="20" rx="10"/><text class="d-s c" x="374" y="40">link pending</text>
+      <rect class="d-btn" x="28" y="60" width="130" height="28" rx="6"/><text class="d-btnt" x="93" y="78">New login link</text>
+      <rect class="d-box" x="168" y="60" width="150" height="28" rx="6"/><text class="d-a c" x="243" y="78">Sign out everywhere</text>
+      <rect class="d-box" x="328" y="60" width="80" height="28" rx="6"/><text class="d-a c" x="368" y="78">Remove</text>
+
+      <path class="d-line" d="M466 36H426"/>
+      <text class="d-s" x="474" y="40">tags: what this person can do</text>
+      <path class="d-line" d="M93 150V92"/>
+      <text class="d-s" x="99" y="140">actions</text>
+      <text class="d-s" x="430" y="132">The admin’s own row shows “admin”</text>
+      <text class="d-s" x="430" y="150">and has no Remove button.</text>
+    </svg>
+  </figure>
+
+  <div class="tablewrap"><table>
+    <tr><th>Tag</th><th>Meaning</th></tr>
+    <tr><td><code>admin</code></td><td>May open the admin page (set only via the command line).</td></tr>
+    <tr><td><code>PIN</code></td><td>Can also sign in with phone/email + PIN. No tag = link-only.</td></tr>
+    <tr><td><code>N devices</code></td><td>Devices on which they stay signed in (max. 10; oldest dropped first).</td></tr>
+    <tr><td><code>link pending</code></td><td>An unused, unexpired login link exists.</td></tr>
+  </table></div>
+
+  <div class="tablewrap"><table>
+    <tr><th>Button</th><th>Effect</th></tr>
+    <tr><td><strong>New login link</strong></td><td>Makes a fresh one-time link (valid 7 days) and shows it with the send buttons. Any older
+      link stops working. Devices already signed in stay signed in.</td></tr>
+    <tr><td><strong>Sign out everywhere</strong></td><td>Ends all their sessions and remembered devices <em>immediately</em> and cancels a pending link.
+      They keep their account; send a new link to let them back in. Using it on yourself keeps your current session.</td></tr>
+    <tr><td><strong>Remove</strong></td><td>Deletes the person (after a confirmation). They are signed out on their next click. You cannot remove yourself.</td></tr>
+  </table></div>
+  <p>Adding someone who already exists is refused (“already has access”) — use <em>New login link</em> instead.
+    Changing a person’s name or PIN is not possible on the page; remove and re-add them, or use
+    <code>make_user.php</code>.</p>
+
+  <h2 id="cli">6. Command-line tools</h2>
+  <p>For when you are on the server (SSH) or working locally with Docker. The <code>.sh</code> wrappers run the PHP
+    tool in a throw-away container against your <em>local</em> <code>./data/</code>.</p>
+  <div class="tablewrap"><table>
+    <tr><th>On the server (PHP)</th><th>Locally (Docker only)</th><th>Does</th></tr>
+    <tr><td><code>php tools/make_user.php &lt;id&gt; &lt;pin&gt; [--admin]</code></td><td><code>tools/adduser.sh</code></td><td>Add a person or set their PIN; <code>--admin</code> grants admin.</td></tr>
+    <tr><td><code>php tools/list_users.php</code></td><td><code>tools/listusers.sh</code></td><td>List everyone with flags (never prints hashes).</td></tr>
+    <tr><td><code>php tools/del_user.php &lt;id&gt;</code></td><td><code>tools/deluser.sh</code></td><td>Remove a person.</td></tr>
+    <tr><td>—</td><td><code>tools/backup.sh [restore &lt;file&gt;]</code></td><td>Snapshot / restore the local Docker data volume.</td></tr>
+  </table></div>
+
+  <h2 id="practice">7. Good practice</h2>
+  <ul>
+    <li><strong>Send a link only to its owner.</strong> Whoever opens an unused link first becomes that person on their device.</li>
+    <li><strong>Lost or stolen phone?</strong> <em>Sign out everywhere</em>, then send a new link to their new device.</li>
+    <li><strong>Pick a strong admin PIN</strong> — longer than 6 characters is fine and wise.</li>
+    <li><strong>Back up <code>data/</code></strong> on the host now and then (users, recipes, pantry, cost log).</li>
+    <li>Don’t overwrite the server’s <code>data/users.json</code> with a local copy once people have been added on the web.</li>
+  </ul>
+</main>
+
+<footer>AIP Recipe Generator documentation · <a href="user.html">User guide</a> ·
+  <a href="developer.html">Developer guide</a></footer>
+</body>
+</html>

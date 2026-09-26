@@ -9,6 +9,9 @@ login link; a PIN is optional. Users live in a JSON file — no database.
 
 KISS by design: no framework, no Composer, no database. Just PHP + cURL.
 
+**Documentation:** open [`docs/index.html`](docs/index.html) in a browser — a user guide,
+an admin guide (inviting people) and a developer guide, with diagrams.
+
 ## Requirements
 
 - PHP 8.0+ with the `curl` extension (bundled in standard PHP builds)
